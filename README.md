@@ -15,10 +15,12 @@ notebooks/
   03_kmeans.ipynb               Reto 3 · Primera versión (k = 2…10, sobre las features antiguas)
   03_kmeans_2.ipynb             Reto 3 · K-Means con k = 2…20 sobre las features del 02_2: codo, silueta,
                                 Davies-Bouldin, k = 6 justificado y distribución → data/clientes_clusters.csv
-  04_segmentos.ipynb            Reto 4 · Perfilado y nombres de negocio de los segmentos
+  04_segmentos.ipynb            Reto 4 · Primera versión (5 segmentos, features antiguas)
+  04_segmentos_2.ipynb          Reto 4 · Perfilado de los 6 segmentos, buyer personas, heatmap, radar y acciones
   _build_notebooks.py           Genera los notebooks 01-04 (fuente de las celdas)
   _build_fe2.py                 Genera el notebook 02_feature_engineering_2
   _build_kmeans2.py             Genera el notebook 03_kmeans_2
+  _build_segmentos2.py          Genera el notebook 04_segmentos_2
 src/
   mb_features.py                Limpieza, agregación a cliente, features derivadas y pipeline sklearn
   plot_style.py                 Estilo común de gráficos
