@@ -3,7 +3,7 @@
 Segmentación de la base de clientes de Mercedes-Benz (Suiza y Austria) con **K-Means** para habilitar
 ofertas de vehículos, planes de mantenimiento, campañas de fidelización y comunicaciones dirigidas.
 
-Este repositorio cubre los **4 retos básicos** y los **retos avanzados 1 (comparativa de algoritmos) y 2 (PCA)**. El reto avanzado 3 (Jackknife) se añadirá después.
+Este repositorio cubre los **4 retos básicos** y los **3 retos avanzados** (comparativa de algoritmos, PCA y estabilidad con Jackknife).
 
 ## Estructura
 
@@ -17,11 +17,13 @@ notebooks/
   04_segmentos.ipynb            Reto 4 · Perfilado de los 6 segmentos, buyer personas, KPIs de valor, mapa de oportunidades y campañas
   avanzado_1_comparativa.ipynb  Reto avanzado 1 · K-Means frente a GMM, Agglomerative y DBSCAN con k = 6
   avanzado_2_pca.ipynb          Reto avanzado 2 · PCA (2D y 3D), varianza explicada, loadings y separabilidad de los clústeres
+  avanzado_3_jackknife.ipynb    Reto avanzado 3 · Estabilidad de los segmentos con Jackknife Clustering (20 submuestras)
   _build_fe2.py                 Genera el notebook 02_feature_engineering
   _build_kmeans2.py             Genera el notebook 03_kmeans
   _build_segmentos2.py          Genera el notebook 04_segmentos
   _build_comparativa.py         Genera el notebook avanzado_1_comparativa
   _build_pca.py                 Genera el notebook avanzado_2_pca
+  _build_jackknife.py           Genera el notebook avanzado_3_jackknife
   _build_notebooks.py           Utilidades comunes para los generadores (ya no genera notebooks)
 src/
   plot_style.py                 Estilo común de gráficos
@@ -104,4 +106,13 @@ PCA sobre 12 features de negocio (log1p + `StandardScaler`): PC1 explica el 22,5
 (39,2 % en 2D y 51,7 % en 3D). **PC1** mide la profundidad de la relación con la marca (antigüedad, vehículos, conectividad, taller) y
 **PC2** enfrenta al cliente maduro de posventa con el multi-vehículo. Los centros de los clústeres caen en zonas distintas del plano, pero sus
 nubes se solapan (silueta ≈ 0 en el espacio del PCA): los clientes forman un continuo de perfiles.
+
+## Reto avanzado 3 · Estabilidad (Jackknife Clustering)
+
+![Saltos entre segmentos](reports/figures/A3_transiciones.png)
+
+Se reentrena K-Means (k = 6) en 20 submuestras que excluyen al azar el 15 % de los clientes. En cada submuestra más del 99 % de los clientes
+recibe el mismo segmento (ARI ≈ 0,99) y el 98 % no cambia en ninguna. El segmento más estable es el Conductor en Leasing (definido por una
+variable binaria) y el menos estable el Veterano a Renovar (definido por la antigüedad del vehículo, una variable continua). Los clientes que
+saltan son clientes frontera (silueta ≈ 0) y lo hacen entre segmentos vecinos. Recomendación: la segmentación es robusta para basar campañas.
 
