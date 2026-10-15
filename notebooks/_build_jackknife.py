@@ -120,6 +120,7 @@ for r in range(N_SUBMUESTRAS):
         "ARI con la referencia": adjusted_rand_score(REF[incluidos], modelo.labels_),
     })
 ejecuciones = pd.DataFrame(ejecuciones).set_index("ejecución")
+ejecuciones.to_csv(ROOT / "reports" / "A3_ejecuciones.csv")
 print(f"20 modelos entrenados en {time.time() - t0:.0f} s")
 
 apariciones = (ASIGNACIONES >= 0).sum(axis=0)
@@ -173,6 +174,9 @@ for i in range(N_SUBMUESTRAS):
 triangulo = coincidencia_pares[np.triu_indices(N_SUBMUESTRAS, k=1)]
 print(f"Coincidencia entre pares de submuestras: media {triangulo.mean():.2f} % · mínima {triangulo.min():.2f} %")
 print(f"ARI entre pares de submuestras:          media {np.mean(ari_pares):.4f} · mínimo {np.min(ari_pares):.4f}")
+pd.Series({"coincidencia_media_%": triangulo.mean(), "coincidencia_min_%": triangulo.min(),
+           "ari_medio": np.mean(ari_pares), "ari_min": np.min(ari_pares), "n_pares": len(triangulo)},
+          name="valor").to_csv(ROOT / "reports" / "A3_pares.csv")
 
 fig, ax = plt.subplots(figsize=(7.5, 6.2))
 im = ax.imshow(coincidencia_pares, cmap=ps.SEQ_BLUE, vmin=triangulo.min() - 0.3, vmax=100)
@@ -198,6 +202,7 @@ TRAMOS = ["100 % (nunca cambia)", "80-99 %", "50-79 %", "menos del 50 %"]
 tramo = pd.cut(estabilidad, bins=[-0.1, 49.99, 79.99, 99.99, 100], labels=TRAMOS[::-1])
 reparto = tramo.value_counts().reindex(TRAMOS)
 tabla_tramos = pd.DataFrame({"clientes": reparto, "% de clientes": (reparto / N_CLIENTES * 100).round(2)})
+tabla_tramos.to_csv(ROOT / "reports" / "A3_tramos_estabilidad.csv")
 display(tabla_tramos)
 
 fig, ax = plt.subplots(figsize=(9, 3.4))
@@ -272,6 +277,8 @@ for r in range(N_SUBMUESTRAS):
     m = ASIGNACIONES[r] >= 0
     transiciones += pd.crosstab(REF[m], ASIGNACIONES[r][m]).reindex(index=range(K), columns=range(K), fill_value=0).to_numpy()
 transiciones = transiciones / transiciones.sum(axis=1, keepdims=True) * 100
+pd.DataFrame(transiciones, index=[NOMBRE[c] for c in range(K)], columns=[NOMBRE[c] for c in range(K)]).to_csv(
+    ROOT / "reports" / "A3_transiciones.csv")
 
 fuera = np.where(np.eye(K, dtype=bool), np.nan, transiciones)
 fig, ax = plt.subplots(figsize=(10, 6))
@@ -324,7 +331,9 @@ ax.set_xticks(range(K), [c.split(" · ")[-1] for c in tamanos.columns], rotation
 ax.set_ylabel("% de clientes de la submuestra"); ax.set_axisbelow(True)
 ax.set_title("Tamaño de cada segmento en las 20 submuestras (línea negra: modelo de referencia)")
 fig.savefig(FIG_DIR / "A3_tamanos_submuestras.png"); plt.show()
-(tamanos.max() - tamanos.min()).rename("variación máxima del tamaño (puntos porcentuales)").round(2).to_frame()'''))
+variacion = (tamanos.max() - tamanos.min()).rename("variación máxima del tamaño (puntos porcentuales)")
+variacion.to_csv(ROOT / "reports" / "A3_variacion_tamanos.csv")
+variacion.round(2).to_frame()'''))
 add(md('''
 El tamaño de cada segmento apenas cambia entre submuestras (variaciones de décimas de punto porcentual) y siempre está pegado al del modelo de
 referencia. Los segmentos no "absorben" ni "pierden" clientes de forma relevante al cambiar los datos.
@@ -345,6 +354,7 @@ comparacion = (pd.DataFrame({"grupo": grupo, "silueta": sil})
                .groupby("grupo")["silueta"]
                .agg(**{"clientes en la muestra": "size", "silueta media": "mean",
                        "% con silueta negativa": lambda v: (v < 0).mean() * 100}))
+comparacion.to_csv(ROOT / "reports" / "A3_silueta_saltan.csv")
 display(comparacion.round(3))
 
 fig, ax = plt.subplots(figsize=(9, 3.6))
@@ -363,10 +373,13 @@ perfil = pd.DataFrame({"client_id": df_prepared.index, "estabilidad": estabilida
     perfil, on="client_id", how="left", validate="one_to_one")
 assert len(perfil) == N_CLIENTES and perfil["main_vehicle_age_years"].notna().all()
 perfil["grupo"] = np.where(perfil["estabilidad"] == 100, "Nunca cambian", "Saltan alguna vez")
-(perfil.groupby("grupo")[["main_vehicle_age_years", "tenure_years", "warranty_visit_frequency", "purchasing_power_per_household_eur"]]
-       .median().rename(columns={"main_vehicle_age_years": "antigüedad vehículo (años)", "tenure_years": "años como cliente",
-                                 "warranty_visit_frequency": "visitas taller/vehículo",
-                                 "purchasing_power_per_household_eur": "poder adquisitivo (€)"}).round(2))'''))
+perfil_saltan = (perfil.groupby("grupo")[["main_vehicle_age_years", "tenure_years", "warranty_visit_frequency",
+                                          "purchasing_power_per_household_eur"]]
+                 .median().rename(columns={"main_vehicle_age_years": "antigüedad vehículo (años)", "tenure_years": "años como cliente",
+                                           "warranty_visit_frequency": "visitas taller/vehículo",
+                                           "purchasing_power_per_household_eur": "poder adquisitivo (€)"}))
+perfil_saltan.to_csv(ROOT / "reports" / "A3_perfil_saltan.csv")
+perfil_saltan.round(2)'''))
 add(md('''
 **Los clientes que saltan son clientes frontera.** Su silueta media es prácticamente 0, frente a la de los clientes que nunca cambian, y casi la
 mitad la tiene negativa: ya en el modelo de referencia estaban tan cerca de otro segmento como del suyo. Además tienen, en mediana, un **vehículo

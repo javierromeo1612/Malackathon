@@ -418,7 +418,7 @@ def avanzado1():
     gfull, gdiag = met.loc["GMM (full)"], met.loc["GMM (diag)"]
     assert met["silueta"].idxmax() == "K-Means" and met["calinski_harabasz"].idxmax() == "K-Means"
 
-    h = cabecera("AVANZADO 1")
+    h = cabecera("1 AVANZADO")
     h += [Paragraph("A. Planteamiento", SECCION),
           p("El objetivo es comprobar si K-Means es el algoritmo más adecuado para segmentar a los clientes, comparándolo con otros "
             "algoritmos entrenados con <b>el mismo número de grupos (k = 6)</b> y <b>los mismos datos preparados</b>: la matriz del reto 2 "
@@ -546,7 +546,7 @@ def avanzado1():
           ]),
           p("<b>Matiz:</b> todas las siluetas son bajas, también la de K-Means, porque los clientes forman un continuo de perfiles. Los segmentos "
             "deben interpretarse como perfiles tipo útiles para orientar acciones comerciales, no como grupos aislados.")]
-    construir("RETO AVANZADO 1 - MERCEDES.pdf", h, max_paginas=4)
+    construir("RETO 1 AVANZADO - MERCEDES.pdf", h, max_paginas=4)
 
 
 # --------------------------------------------------------------------------- #
@@ -565,7 +565,7 @@ def avanzado2():
     derecha = reg[reg.PC1 > 0]
     izquierda = reg[reg.PC1 < 0]
 
-    h = cabecera("AVANZADO 2")
+    h = cabecera("2 AVANZADO")
     h += [Paragraph("A. Planteamiento", SECCION),
           p(f"El objetivo es resumir el perfil de cada cliente en dos o tres ejes (componentes principales) para poder <b>visualizar los "
             f"segmentos</b> obtenidos con K-Means (k = 6). Partiendo del CSV original se limpiaron los datos, se agregaron a una fila por "
@@ -657,10 +657,141 @@ def avanzado2():
           p("<b>Conclusión:</b> la segmentación captura diferencias reales de perfil, visibles en la posición de cada segmento, pero entre clientes "
             "que forman un <b>continuo</b>. Los segmentos son útiles para orientar acciones de marketing, no grupos aislados con fronteras nítidas; "
             "es coherente con la silueta moderada del reto 3 y con la estabilidad comprobada en el reto avanzado 3.")]
-    construir("RETO AVANZADO 2 - MERCEDES.pdf", h, max_paginas=4)
+    construir("RETO 2 AVANZADO - MERCEDES.pdf", h, max_paginas=4)
+
+
+# --------------------------------------------------------------------------- #
+# RETO AVANZADO 3 · Estabilidad de clusters (Jackknife Clustering)
+# --------------------------------------------------------------------------- #
+def avanzado3():
+    rep = ROOT / "reports"
+    ejec = pd.read_csv(rep / "A3_ejecuciones.csv", index_col=0)
+    pares = pd.read_csv(rep / "A3_pares.csv", index_col=0)["valor"]
+    tramos = pd.read_csv(rep / "A3_tramos_estabilidad.csv", index_col=0)
+    porc = pd.read_csv(rep / "A3_estabilidad_por_cluster.csv", index_col=0)
+    trans = pd.read_csv(rep / "A3_transiciones.csv", index_col=0)
+    var_tam = pd.read_csv(rep / "A3_variacion_tamanos.csv", index_col=0).iloc[:, 0]
+    sil = pd.read_csv(rep / "A3_silueta_saltan.csv", index_col=0)
+    perf = pd.read_csv(rep / "A3_perfil_saltan.csv", index_col=0)
+    coin, ari = ejec["coincidencia con la referencia (%)"], ejec["ARI con la referencia"]
+    nombre = lambda s: s.split(" · ")[1]
+    en_frase = lambda s: nombre(s)[3:] if nombre(s).startswith("El ") else nombre(s)   # "El Joven…" -> "Joven…" dentro de una frase
+    mas, menos = porc.index[0], porc.index[-1]
+    nunca = tramos.loc["100 % (nunca cambia)", "% de clientes"]
+
+    h = cabecera("3 AVANZADO")
+    h += [Paragraph("A. Planteamiento", SECCION),
+          p("Un modelo de clustering puede tener buenos valores de silueta y, aun así, ser inestable: si pequeños cambios en los datos cambian "
+            "los segmentos, las campañas se dirigirían a grupos que no existen de forma consistente. Para validar que la segmentación (K-Means "
+            "con k = 6) es robusta antes de basar decisiones de marketing en ella, se aplicó <b>Jackknife Clustering</b>:"),
+          bullets([
+              f"<b>Submuestras:</b> se generaron <b>{len(ejec)} submuestras</b>, cada una excluyendo al azar el <b>15 % de los clientes</b> "
+              f"(dentro del rango del 10-20 % propuesto) y conservando unos {n(ejec['clientes usados'].mean())} clientes.",
+              "<b>Reentrenamiento:</b> en cada submuestra se entrenó K-Means con el <b>mismo k óptimo (k = 6)</b> y los mismos parámetros del "
+              "modelo final (n_init=10, random_state=42). La semilla se mantiene fija a propósito: así lo único que cambia entre ejecuciones son "
+              "los clientes, que es justo lo que se quiere medir.",
+              "<b>Alineación de etiquetas:</b> K-Means numera los clústeres de forma arbitraria (el segmento que en el modelo final es el 2 puede "
+              "llamarse 4 en otra ejecución). Antes de comparar, cada clúster se emparejó con el del modelo final mediante el <b>método húngaro</b>, "
+              "que elige el emparejamiento uno a uno con más clientes coincidentes. Sin este paso, dos segmentaciones idénticas parecerían distintas.",
+              f"<b>Métricas:</b> el <b>porcentaje de coincidencia de asignación</b> (qué parte de los clientes presentes en dos segmentaciones está "
+              f"en el mismo clúster) y, como control, el <b>ARI</b> (1 si dos segmentaciones son idénticas, 0 si coinciden lo mismo que por azar). "
+              f"Cada cliente aparece de media en {n(len(ejec) * 0.85)} submuestras, por lo que todos se pueden comparar entre ejecuciones.",
+          ])]
+
+    h += [Paragraph("B. Estabilidad de las asignaciones", SECCION),
+          tabla([["Comparación", "Coincidencia de asignación", "ARI"],
+                 ["Cada submuestra frente al modelo final", f"{n(coin.mean(), 2)} % (mín. {n(coin.min(), 2)} %)",
+                  f"{n(ari.mean(), 3)} (mín. {n(ari.min(), 3)})"],
+                 [f"Entre pares de submuestras ({int(pares['n_pares'])} pares)",
+                  f"{n(pares['coincidencia_media_%'], 2)} % (mín. {n(pares['coincidencia_min_%'], 2)} %)",
+                  f"{n(pares['ari_medio'], 3)} (mín. {n(pares['ari_min'], 3)})"]],
+                [6.5 * cm, 5.5 * cm, 4 * cm]),
+          Spacer(1, 4),
+          figura(FIG / "A3_coincidencia_por_ejecucion.png", 15.5, "Figura 1. Coincidencia y ARI de cada submuestra frente al modelo final "
+                 "(escala vertical ampliada para apreciar las diferencias)."),
+          p(f"En <b>todas</b> las submuestras más del {n(coin.min() // 1)} % de los clientes recibe el mismo segmento que en el modelo final, y la "
+            f"comparación entre submuestras (que no favorece al modelo entrenado con todos los clientes) da resultados igual de altos. Para cada "
+            f"cliente se calculó además su <b>estabilidad individual</b>: el porcentaje de las submuestras en las que aparece en las que mantiene "
+            f"su segmento."),
+          tabla([["Estabilidad individual", "Clientes", "% de clientes"]] +
+                [[t, n(r.clientes), f"{n(r['% de clientes'], 2)} %"] for t, r in tramos.iterrows()],
+                [6 * cm, 3.5 * cm, 3.5 * cm]),
+          Spacer(1, 4),
+          p(f"El <b>{n(nunca, 1)} % de los clientes no cambia de segmento en ninguna</b> de las {len(ejec)} ejecuciones; solo una pequeña minoría "
+            f"cambia alguna vez. A estos clientes los llamamos <b>clientes que saltan</b>.")]
+
+    filas = [["Segmento", "Coincidencia media", "% nunca cambian", "% inestables (<80 %)", "Variación de tamaño"]]
+    for s, r in porc.iterrows():
+        filas.append([nombre(s), f"{n(r['coincidencia media (%)'], 2)} %", f"{n(r['% nunca cambian'], 1)} %",
+                      f"{n(r['% inestables (<80 %)'], 2)} %", f"{n(var_tam[s], 2)} p.p."])
+    fuera = trans.copy()
+    for s in fuera.index:
+        fuera.loc[s, s] = float("nan")
+    top = fuera.stack().sort_values(ascending=False).head(5)
+    h += [Paragraph("C. Análisis por clúster: ¿hay algún segmento especialmente inestable?", SECCION),
+          tabla(filas, [5 * cm, 3 * cm, 2.8 * cm, 3.2 * cm, 3 * cm]),
+          Spacer(1, 4),
+          figura(FIG / "A3_estabilidad_por_cluster.png", 16.5, "Figura 2. Estabilidad de cada segmento, ordenados de más a menos estable."),
+          p(f"<b>Ningún segmento es inestable:</b> en todos, más del {n(porc['% nunca cambian'].min() // 1)} % de los clientes nunca cambia y "
+            f"menos del {n(porc['% inestables (<80 %)'].max() // 1 + 1)} % es inestable; además, el tamaño de cada segmento varía como máximo "
+            f"{n(var_tam.max(), 2)} puntos porcentuales entre submuestras. Aun así hay diferencias claras:"),
+          bullets([
+              f"<b>El más estable es el {en_frase(mas)}</b> ({n(porc.loc[mas, 'coincidencia media (%)'], 2)} % de coincidencia). Se define sobre todo "
+              f"por una variable <b>binaria y muy marcada</b>: tener financiación activa. Un cliente la tiene o no la tiene, así que la frontera "
+              f"del segmento no se mueve al cambiar los datos.",
+              f"<b>El menos estable es el {en_frase(menos)}</b> ({n(porc.loc[menos, 'coincidencia media (%)'], 2)} %), seguido del "
+              f"{en_frase(porc.index[-2])}. Ambos se distinguen por variables <b>continuas</b>, sobre todo la antigüedad del vehículo: el límite "
+              f"entre coche viejo y coche de edad media no es un corte natural y, al cambiar los clientes de entrenamiento, se desplaza "
+              f"ligeramente y arrastra a los clientes que están justo en la frontera.",
+          ]),
+          Paragraph("¿Hacia dónde saltan los clientes?", SUBSECCION),
+          figura(FIG / "A3_transiciones.png", 12.5, "Figura 3. Segmento asignado en las submuestras según el segmento de referencia."),
+          tabla([["Desde", "Hacia", "% de asignaciones"]] + [[nombre(d), nombre(a), f"{n(v, 2)} %"] for (d, a), v in top.items()],
+                [5.5 * cm, 5.5 * cm, 3.5 * cm]),
+          Spacer(1, 4),
+          p("Los saltos se concentran entre <b>segmentos vecinos</b>, que comparten rasgos (por ejemplo, vehículos de gama alta y con años entre el "
+            "Ejecutivo Premium AMG y el Veterano a Renovar, o antigüedades parecidas entre el Veterano, el Joven y el Sénior). No hay saltos entre "
+            "segmentos muy distintos, como del Conductor en Leasing al Veterano a Renovar: la inestabilidad, cuando existe, es un <b>ajuste de "
+            "fronteras</b> y no un cambio en el significado de los segmentos.")]
+
+    s_n, s_s = sil.loc["Nunca cambian"], sil.loc["Saltan alguna vez"]
+    p_n, p_s = perf.loc["Nunca cambian"], perf.loc["Saltan alguna vez"]
+    h += [Paragraph("D. ¿Qué clientes saltan entre clústeres y por qué?", SECCION),
+          tabla([["Grupo de clientes", "Silueta media", "% con silueta negativa", "Antigüedad del vehículo", "Poder adquisitivo"],
+                 ["Nunca cambian", n(s_n["silueta media"], 3), f"{n(s_n['% con silueta negativa'], 1)} %",
+                  f"{n(p_n['antigüedad vehículo (años)'], 1)} años", f"{n(p_n['poder adquisitivo (€)'] / 1000)} k€"],
+                 ["Saltan alguna vez", n(s_s["silueta media"], 3), f"{n(s_s['% con silueta negativa'], 1)} %",
+                  f"{n(p_s['antigüedad vehículo (años)'], 1)} años", f"{n(p_s['poder adquisitivo (€)'] / 1000)} k€"]],
+                [3.6 * cm, 2.6 * cm, 3.6 * cm, 3.6 * cm, 3.1 * cm]),
+          Spacer(1, 3),
+          Paragraph("Silueta calculada sobre una muestra de 20.000 clientes; antigüedad y poder adquisitivo en mediana.", PIE),
+          bullets([
+              f"<b>Los clientes que saltan son clientes frontera:</b> su silueta media es prácticamente 0 y casi la mitad la tiene negativa, es "
+              f"decir, ya en el modelo final estaban tan cerca de otro segmento como del suyo. Además tienen un vehículo más antiguo "
+              f"({n(p_s['antigüedad vehículo (años)'], 1)} frente a {n(p_n['antigüedad vehículo (años)'], 1)} años), la variable cuyo límite entre "
+              f"segmentos es más difuso.",
+              "<b>Silueta y estabilidad no son lo mismo:</b> en el reto 3, el segmento con peor silueta era el Ejecutivo Premium AMG, y aquí es de "
+              "los más estables. La silueta mide lo compacto y separado que está un grupo; la estabilidad, si se reproduce al cambiar los datos. "
+              "El Ejecutivo Premium AMG es disperso, pero su frontera es nítida porque se apoya en la gama del vehículo, una variable discreta.",
+          ])]
+
+    h += [Paragraph("E. Recomendación final", SECCION),
+          p(f"<b>La segmentación es robusta y fiable.</b> Al excluir un 15 % de los clientes y reentrenar {len(ejec)} veces, en cada ejecución más "
+            f"del {n(coin.min() // 1)} % de los clientes recibe el mismo segmento que en el modelo final, el {n(nunca, 1)} % no cambia en ninguna, "
+            f"el tamaño de los segmentos apenas varía y los pocos cambios se producen entre segmentos vecinos. Por tanto:"),
+          bullets([
+              "<b>Usar la segmentación de K-Means con k = 6 para las decisiones de marketing:</b> las campañas diseñadas sobre ella se dirigirán a "
+              "grupos reales y consistentes.",
+              "<b>Tratar con cautela a los clientes inestables</b> (estabilidad inferior al 80 %, identificados cliente a cliente en el cuaderno): no "
+              "excluirlos, sino combinar las acciones de los dos segmentos entre los que oscilan (por ejemplo, un Veterano a Renovar que salta al "
+              "Joven Aspiracional puede recibir tanto la oferta de renovación como la de primera financiación).",
+              f"<b>Vigilar al {en_frase(menos)}</b> al reentrenar el modelo con datos nuevos, por ser el segmento más sensible.",
+              "<b>Repetir este análisis de Jackknife cada vez que se reentrene el modelo</b>, como control de calidad antes de lanzar campañas.",
+          ])]
+    construir("RETO 3 AVANZADO - MERCEDES.pdf", h, max_paginas=4)
 
 
 if __name__ == "__main__":
-    pedidos = sys.argv[1:] or ["1", "2", "3", "A1", "A2"]
+    pedidos = sys.argv[1:] or ["1", "2", "3", "A1", "A2", "A3"]
     for r in pedidos:
-        {"1": reto1, "2": reto2, "3": reto3, "A1": avanzado1, "A2": avanzado2}[r]()
+        {"1": reto1, "2": reto2, "3": reto3, "A1": avanzado1, "A2": avanzado2, "A3": avanzado3}[r]()
