@@ -3,6 +3,7 @@
 !reports/*.csv
 data/
 *.pdf
+!notebooks/docs/*.pdf
 
 # Python / Jupyter
 __pycache__/
