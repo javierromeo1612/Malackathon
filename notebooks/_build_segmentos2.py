@@ -9,6 +9,9 @@ from _build_notebooks import SETUP, code, md, save
 cells = []
 add = cells.append
 
+# Este notebook no usa el CSV original: quitamos de la cabecera común la línea que lo localiza
+SETUP_SIN_CSV = SETUP.split("\nCSV = next(")[0]
+
 add(md('''
 # Reto 4 · Interpretación de los segmentos
 
@@ -33,7 +36,7 @@ en términos de negocio.
 
 Añadimos algunas columnas auxiliares para resumir mejor cada segmento: edad numérica aproximada, vehículo electrificado, financiación activa y modelo AMG.
 '''))
-add(code(SETUP + r'''
+add(code(SETUP_SIN_CSV + r'''
 
 df = pd.read_csv(DATA_DIR / "clientes_clusters.csv", low_memory=False)
 K = df["cluster"].nunique()
