@@ -12,10 +12,13 @@ notebooks/
   01_eda.ipynb                  Reto 1 · Exploración y calidad de datos
   02_feature_engineering_2.ipynb Reto 2 · Tratamiento de nulos, features derivadas (con SQL), selección
                                 y pipeline completo → data/clientes_features.csv
-  03_kmeans.ipynb               Reto 3 · K-Means, método del codo, Silhouette, k final
+  03_kmeans.ipynb               Reto 3 · Primera versión (k = 2…10, sobre las features antiguas)
+  03_kmeans_2.ipynb             Reto 3 · K-Means con k = 2…20 sobre las features del 02_2: codo, silueta,
+                                Davies-Bouldin, k = 6 justificado y distribución → data/clientes_clusters.csv
   04_segmentos.ipynb            Reto 4 · Perfilado y nombres de negocio de los segmentos
   _build_notebooks.py           Genera los notebooks 01-04 (fuente de las celdas)
   _build_fe2.py                 Genera el notebook 02_feature_engineering_2
+  _build_kmeans2.py             Genera el notebook 03_kmeans_2
 src/
   mb_features.py                Limpieza, agregación a cliente, features derivadas y pipeline sklearn
   plot_style.py                 Estilo común de gráficos
