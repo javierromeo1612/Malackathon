@@ -1,8 +1,8 @@
-"""Genera notebooks/avanzado_2_pca.ipynb (Reto avanzado 2 · PCA).
+"""Genera notebooks/02_avanzada_pca.ipynb (Reto avanzado 2 · PCA).
 
 Uso (desde la carpeta notebooks/):
     python _build_pca.py
-    jupyter nbconvert --to notebook --execute --inplace avanzado_2_pca.ipynb
+    jupyter nbconvert --to notebook --execute --inplace 02_avanzada_pca.ipynb
 """
 from _build_notebooks import SETUP, code, md, save
 
@@ -490,4 +490,4 @@ loadings.to_csv(ROOT / "reports" / "A2_loadings_pca.csv")
 print("Guardado: data/pca_clientes.csv (componentes y segmento por cliente) y reports/A2_loadings_pca.csv")"""))
 
 if __name__ == "__main__":
-    save("avanzado_2_pca.ipynb", cells)
+    save("02_avanzada_pca.ipynb", cells)

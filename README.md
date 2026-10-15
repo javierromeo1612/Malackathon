@@ -16,13 +16,13 @@ notebooks/
                                 k = 6 justificado y distribución → data/clientes_clusters.csv
   04_segmentos.ipynb            Reto 4 · Perfilado de los 6 segmentos, buyer personas, KPIs de valor, mapa de oportunidades y campañas
   01_avanzada_comparativa.ipynb Reto avanzado 1 · K-Means frente a GMM, Agglomerative y DBSCAN con k = 6
-  avanzado_2_pca.ipynb          Reto avanzado 2 · PCA (2D y 3D), varianza explicada, loadings y separabilidad de los clústeres
+  02_avanzada_pca.ipynb         Reto avanzado 2 · PCA (2D y 3D), varianza explicada, loadings y separabilidad de los clústeres
   avanzado_3_jackknife.ipynb    Reto avanzado 3 · Estabilidad de los segmentos con Jackknife Clustering (20 submuestras)
   _build_fe2.py                 Genera el notebook 02_feature_engineering
   _build_kmeans2.py             Genera el notebook 03_kmeans
   _build_segmentos2.py          Genera el notebook 04_segmentos
   _build_comparativa.py         Genera el notebook 01_avanzada_comparativa
-  _build_pca.py                 Genera el notebook avanzado_2_pca
+  _build_pca.py                 Genera el notebook 02_avanzada_pca
   _build_jackknife.py           Genera el notebook avanzado_3_jackknife
   _build_notebooks.py           Utilidades comunes para los generadores (ya no genera notebooks)
 src/
