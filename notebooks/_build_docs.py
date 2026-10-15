@@ -566,11 +566,11 @@ def avanzado2():
     izquierda = reg[reg.PC1 < 0]
 
     h = cabecera("2 AVANZADO")
-    h += [p(f"En este reto aplicamos un <b>PCA</b> sobre {len(load)} features de negocio para resumir el perfil de cada cliente en tres "
+    h += [p(f"En este reto aplicamos un <b>PCA</b> sobre las features de negocio para resumir el perfil de cada cliente en tres "
             f"componentes principales, de modo que podamos <b>visualizar los seis segmentos</b> de K-Means en 2D y 3D, interpretar qué mide cada "
             f"componente y valorar si los segmentos son visualmente separables.")]
 
-    h += [Paragraph("B. Varianza explicada por cada componente", SECCION),
+    h += [Paragraph("A. Varianza explicada por cada componente", SECCION),
           tabla([["Componente", "Varianza explicada", "Varianza acumulada"],
                  ["PC1", f"{n(v1, 1)} %", f"{n(v1, 1)} %"],
                  ["PC2", f"{n(v2, 1)} %", f"{n(acum2, 1)} % (plano 2D)"],
@@ -585,7 +585,7 @@ def avanzado2():
     filas = [["Variable original", "PC1", "PC2", "PC3"]]
     for var_name, r in load.reindex(load["PC1"].abs().sort_values(ascending=False).index).iterrows():
         filas.append([var_name] + [f"<b>{n(x, 2)}</b>" if abs(x) >= 0.3 else n(x, 2) for x in r.values])
-    h += [Paragraph("C. Interpretación de las componentes principales", SECCION),
+    h += [Paragraph("B. Interpretación de las componentes principales", SECCION),
           p("Los <b>loadings</b> son el peso de cada variable original en cada componente: un valor alto, positivo o negativo, indica que la "
             "variable define el eje, y el signo, en qué dirección. En negrita, los pesos de 0,30 o más en valor absoluto."),
           tabla(filas, [6.5 * cm, 2.6 * cm, 2.6 * cm, 2.6 * cm], envolver=True),
@@ -602,7 +602,7 @@ def avanzado2():
               "menor que la de las continuas estandarizadas. Es buscado: evita que una característica minoritaria, como B2B, domine la proyección.",
           ])]
 
-    h += [Paragraph("D. Visualización de los clusters", SECCION),
+    h += [Paragraph("C. Visualización de los clusters", SECCION),
           figuras_lado_a_lado([FIG / "A2_pca_2d_clusters.png", FIG / "A2_pca_3d_clusters.png"], 17,
                               "Figura 2. Clientes coloreados por segmento en el plano PC1-PC2 (izquierda, muestra de 25.000 clientes) "
                               "y en el espacio PC1-PC2-PC3 (derecha)."),
@@ -626,7 +626,7 @@ def avanzado2():
               f"taller oficial mucho menor ({n(izquierda.posventa_pct.min())}-{n(izquierda.posventa_pct.max())} %).",
           ])]
 
-    h += [Paragraph("E. Valoración: ¿los clusters son visualmente separables?", SECCION),
+    h += [Paragraph("D. Valoración: ¿los clusters son visualmente separables?", SECCION),
           p(f"<b>No de forma nítida.</b> En el plano del PCA las nubes de los segmentos se solapan en sus bordes, y la medida objetiva lo confirma: "
             f"la silueta de los clústeres en el espacio del PCA es de <b>{n(sep['silueta_2d'], 3)}</b> en 2D y de <b>{n(sep['silueta_3d'], 3)}</b> "
             f"en 3D (valores cercanos a 0 indican grupos solapados). Sí se distinguen claramente sus <b>posiciones medias</b>, que caen en zonas "
