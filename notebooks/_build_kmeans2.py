@@ -26,6 +26,7 @@ Este notebook cubre:
 4. Métricas de apoyo y tamaño de los segmentos
 5. Selección del k óptimo
 6. Modelo final y distribución de clientes
+7. Robustez y validación del modelo
 '''))
 
 # --------------------------------------------------------------------------- #
@@ -51,9 +52,11 @@ from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_har
 df_prepared = pd.read_pickle(DATA_DIR / "X_model_fe2.pkl")
 df = pd.read_csv(DATA_DIR / "clientes_features.csv", low_memory=False).set_index("client_id")
 
-# Comprobamos que ambas tablas tienen los mismos clientes en el mismo orden
-assert df_prepared.index.equals(df.index)
+# Controles de integridad: un cliente por fila, sin duplicados, y ambas tablas con los mismos clientes en el mismo orden
+assert df.index.is_unique and df_prepared.index.is_unique, "hay client_id duplicados"
+assert df_prepared.index.equals(df.index), "las dos tablas no tienen los mismos clientes en el mismo orden"
 X = df_prepared.values
+assert not np.isnan(X).any(), "la matriz del modelo tiene nulos"
 print(f"Clientes: {X.shape[0]:,} · columnas del modelo: {X.shape[1]}")
 df_prepared.describe().T[["mean", "50%", "min", "max"]].round(2)'''))
 
@@ -244,12 +247,19 @@ add(md('''
 ## 6. Modelo final y distribución de clientes
 
 Entrenamos K-Means con **k = 6** y los mismos parámetros que en la exploración, y añadimos la etiqueta de clúster a cada cliente en `df['cluster']`.
+
+Fijamos explícitamente dos parámetros:
+- **`random_state=42`**: K-Means empieza colocando los centros al azar; fijar la semilla hace que cualquiera que ejecute el cuaderno obtenga
+  exactamente los mismos clústeres, con la misma numeración.
+- **`n_init=10`**: repite el entrenamiento con 10 posiciones iniciales distintas y se queda con la mejor (la de menor inercia), lo que evita
+  quedarse con una solución mala por un mal punto de partida.
 '''))
 add(code(r'''K_FINAL = 6
 kmeans_final = KMeans(n_clusters=K_FINAL, n_init=10, random_state=42).fit(X)
 df["cluster"] = kmeans_final.labels_
 
-# Mismo resultado que en la exploración (mismos parámetros y semilla)
+# Controles: todos los clientes tienen clúster y es el mismo resultado que en la exploración (mismos parámetros y semilla)
+assert df["cluster"].notna().all() and len(df) == len(df_prepared)
 assert (df["cluster"].to_numpy() == etiquetas[K_FINAL]).all()
 print(f"Modelo final: k = {K_FINAL} · inercia = {kmeans_final.inertia_:,.0f} · silueta = {res.silueta[K_FINAL]:.4f}")'''))
 add(code(r'''distribucion = (df["cluster"].value_counts().sort_index().rename("clientes").to_frame()
@@ -269,12 +279,95 @@ fig.savefig(FIG_DIR / "03b_distribucion_clusters.png"); plt.show()'''))
 add(md('''
 Los seis segmentos tienen tamaños equilibrados, entre el 12 % y el 19 % de la base: ninguno absorbe a la mayoría de los clientes ni es tan
 pequeño que no compense una estrategia propia. Cada barra muestra el porcentaje y, dentro, el número de clientes.
+'''))
+
+# --------------------------------------------------------------------------- #
+add(md('''
+## 7. Robustez y validación del modelo
+
+### 7.1 Gráfico de silueta por clúster
+
+La silueta media resume todo el modelo en un número. El **gráfico de silueta** muestra el valor de cada cliente, agrupado por clúster y
+ordenado de mayor a menor, y permite ver la **cohesión de cada segmento** por separado:
+
+- Una "cuchilla" ancha y con valores positivos indica un clúster cohesionado: sus clientes se parecen más entre sí que a los de otros clústeres.
+- Los valores **negativos** son clientes que están más cerca de otro clúster que del suyo: están en la frontera entre segmentos.
+
+Como en la exploración, lo calculamos sobre una muestra aleatoria de 20.000 clientes.
+'''))
+add(code(r'''from sklearn.metrics import silhouette_samples
+
+muestra = np.random.default_rng(42).choice(len(X), 20_000, replace=False)
+etiq_muestra = df["cluster"].to_numpy()[muestra]
+sil = silhouette_samples(X[muestra], etiq_muestra)
+
+fig, ax = plt.subplots(figsize=(9, 7))
+y = 0
+for c in range(K_FINAL):
+    valores = np.sort(sil[etiq_muestra == c])
+    ax.fill_betweenx(np.arange(y, y + len(valores)), 0, valores, color=ps.SERIES[c], alpha=0.85, linewidth=0)
+    ax.text(-0.02, y + len(valores) / 2, f"Clúster {c}", ha="right", va="center", fontsize=9, color=ps.INK)
+    y += len(valores) + 400                                          # hueco entre clústeres
+ax.axvline(sil.mean(), color=ps.INK, ls="--", lw=1.2)
+ax.text(sil.mean() + 0.005, -y * 0.02, f"silueta media = {sil.mean():.3f}", va="top", fontsize=9, color=ps.INK)
+ax.axvline(0, color=ps.INK_2, lw=0.8)
+ax.set_yticks([]); ax.grid(axis="y", visible=False)
+ax.set_xlim(-0.35, 0.6); ax.set_xlabel("Coeficiente de silueta de cada cliente")
+ax.set_title(f"Gráfico de silueta por clúster (k = {K_FINAL}, muestra de 20.000 clientes)")
+fig.savefig(FIG_DIR / "03b_silueta_por_cluster.png"); plt.show()
+
+cohesion = (pd.DataFrame({"cluster": etiq_muestra, "silueta": sil}).groupby("cluster")["silueta"]
+            .agg(silueta_media="mean", silueta_mediana="median", **{"% clientes en frontera (silueta < 0)": lambda v: (v < 0).mean() * 100}))
+print(f"Clientes con silueta negativa en el total de la muestra: {(sil < 0).mean():.1%}")
+cohesion.round(3)'''))
+add(md('''
+**Lectura del gráfico.** Todos los clústeres tienen silueta media positiva y solo una pequeña parte de los clientes (en torno al 5 %) queda con
+silueta negativa, es decir, en la frontera con otro segmento:
+
+- El **clúster 3** es el más cohesionado: tiene la silueta más alta y ningún cliente en negativo.
+- El **clúster 1** es el menos nítido: tiene la silueta más baja y es el que más clientes tiene en la frontera. Es un segmento definido sobre
+  todo por la gama alta del vehículo que comparte otros rasgos (uso del taller, financiación) con varios segmentos, así que parte de sus
+  clientes queda a medio camino. Al presentar los segmentos conviene tratarlo como un perfil con bordes más difusos.
+- El resto de clústeres tiene una cohesión intermedia y pocos clientes en la frontera.
+'''))
+add(md('''
+### 7.2 Estabilidad frente a la inicialización
+
+Fijar `random_state=42` garantiza que el resultado sea **reproducible**, pero no demuestra que sea **estable**: podría ocurrir que con otra
+semilla saliera una segmentación distinta. Lo comprobamos entrenando el mismo modelo con otras cinco semillas y comparando el resultado con el
+modelo final mediante el **ARI** (*Adjusted Rand Index*: 1 si las dos segmentaciones son idénticas, 0 si coinciden lo mismo que por azar,
+sin importar cómo se numeren los clústeres).
+'''))
+add(code(r'''from sklearn.metrics import adjusted_rand_score
+
+estabilidad = []
+for semilla in [0, 1, 7, 123, 2026]:
+    otro = KMeans(n_clusters=K_FINAL, n_init=10, random_state=semilla).fit(X)
+    estabilidad.append({"random_state": semilla,
+                        "ARI frente al modelo final": adjusted_rand_score(df["cluster"], otro.labels_),
+                        "diferencia de inercia (%)": (otro.inertia_ - kmeans_final.inertia_) / kmeans_final.inertia_ * 100})
+pd.DataFrame(estabilidad).round(4)'''))
+add(md('''
+Con las cinco semillas el ARI es prácticamente 1 y la inercia es la misma: K-Means llega **siempre a la misma segmentación**,
+independientemente del punto de partida. Por tanto, los segmentos no son fruto del azar de la inicialización; `random_state=42` solo asegura
+que, además, la numeración de los clústeres sea siempre la misma. La estabilidad frente a cambios en los propios datos se estudia en el reto
+avanzado 3.
 
 En el siguiente cuaderno (reto 4) describiremos cada clúster en lenguaje de negocio y le daremos un nombre.
 '''))
 add(code(r'''import joblib
 
-df.reset_index().to_csv(DATA_DIR / "clientes_clusters.csv", index=False)      # clientes con su clúster, para el reto 4
+salida = df.reset_index()
+# Controles antes de guardar: un registro por cliente, todos con clúster válido
+assert salida["client_id"].is_unique and len(salida) == len(df_prepared)
+assert set(salida["cluster"].unique()) == set(range(K_FINAL))
+salida.to_csv(DATA_DIR / "clientes_clusters.csv", index=False)      # clientes con su clúster, para el reto 4
+
+# Relectura: el fichero guardado contiene exactamente los mismos clientes y clústeres
+relectura = pd.read_csv(DATA_DIR / "clientes_clusters.csv", usecols=["client_id", "cluster"], dtype={"client_id": str})
+assert (relectura["client_id"].to_numpy() == salida["client_id"].to_numpy()).all()
+assert (relectura["cluster"].to_numpy() == salida["cluster"].to_numpy()).all()
+
 joblib.dump(kmeans_final, DATA_DIR / "kmeans_final_k6.joblib")
 res.to_csv(ROOT / "reports" / "kmeans2_metricas_k.csv")
 print("Guardado: data/clientes_clusters.csv, data/kmeans_final_k6.joblib y reports/kmeans2_metricas_k.csv")'''))
@@ -285,6 +378,8 @@ add(md('''
 - El **codo** y el mejor **Davies-Bouldin** están en k = 6; la **silueta** máxima en k = 5, prácticamente empatada con k = 6.
 - Elegimos **k = 6**: combina las mejores señales técnicas con segmentos equilibrados y añade un grupo de clientes en ventana de renovación.
 - El modelo final asigna a cada cliente un clúster en `df['cluster']`; los segmentos representan entre el 12 % y el 19 % de la base.
+- **Robustez:** todos los clústeres tienen silueta media positiva (el 3 es el más cohesionado y el 1 el más difuso) y el modelo es estable:
+  con otras semillas se obtiene prácticamente la misma segmentación.
 '''))
 
 if __name__ == "__main__":

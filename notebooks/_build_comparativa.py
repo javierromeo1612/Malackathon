@@ -59,6 +59,7 @@ from sklearn.metrics import (silhouette_score, davies_bouldin_score, calinski_ha
                              adjusted_rand_score, normalized_mutual_info_score)
 
 df_prepared = pd.read_pickle(DATA_DIR / "X_model_fe2.pkl")
+assert df_prepared.index.is_unique, "hay client_id duplicados en la matriz del modelo"
 X = df_prepared.values
 K = 6
 rng = np.random.default_rng(42)
@@ -93,11 +94,15 @@ kmeans = KMeans(n_clusters=K, n_init=10, random_state=42).fit(X)
 etiquetas["K-Means"] = kmeans.labels_
 resultados.append(evaluar("K-Means", kmeans.labels_, time.time() - t0, "Modelo elegido en el cuaderno 03"))
 
-# Comprobación: son los mismos clústeres que guardó el cuaderno 03
+# Comprobación: son los mismos clústeres que guardó el cuaderno 03 (cruce por client_id, sin pérdidas ni duplicados)
 fichero_03 = DATA_DIR / "clientes_clusters.csv"
 if fichero_03.exists():
-    guardados = pd.read_csv(fichero_03, usecols=["cluster"])["cluster"].to_numpy()
-    print("Mismos clústeres que el cuaderno 03:", bool((guardados == kmeans.labels_).all()))
+    guardados = pd.read_csv(fichero_03, usecols=["client_id", "cluster"], dtype={"client_id": str})
+    assert guardados["client_id"].is_unique
+    actuales = pd.DataFrame({"client_id": df_prepared.index, "cluster_actual": kmeans.labels_})
+    cruce = actuales.merge(guardados, on="client_id", how="inner", validate="one_to_one")
+    assert len(cruce) == len(actuales), "el fichero del cuaderno 03 no contiene a todos los clientes"
+    print("Mismos clústeres que el cuaderno 03:", bool((cruce["cluster_actual"] == cruce["cluster"]).all()))
 pd.DataFrame(resultados).round(3)'''))
 
 # --------------------------------------------------------------------------- #
@@ -287,7 +292,9 @@ grupos utilizables (cada fila suma 100 %). Si los segmentos fueran los mismos, c
 add(code(r'''# Nombres de negocio de los segmentos de K-Means (cuaderno 04), si están disponibles
 fichero_04 = DATA_DIR / "clientes_segmentos_k6.csv"
 if fichero_04.exists():
-    seg = pd.read_csv(fichero_04, usecols=["cluster", "segmento"]).drop_duplicates().set_index("cluster")["segmento"]
+    seg = pd.read_csv(fichero_04, usecols=["cluster", "segmento"]).drop_duplicates()
+    assert seg["cluster"].is_unique, "un clúster tiene más de un nombre"
+    seg = seg.set_index("cluster")["segmento"]
     nombres_km = {c: f"{c} · {seg[c]}" for c in range(K)}
 else:
     nombres_km = {c: f"Clúster {c}" for c in range(K)}

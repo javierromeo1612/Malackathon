@@ -21,8 +21,9 @@ segmentos en un gráfico. Este notebook cubre:
 2. Limpieza, agregación a cliente y features derivadas
 3. Pipeline de preprocesamiento
 4. PCA: varianza explicada en 2D y 3D
-5. Pesos de las variables (loadings) y visualización
-6. Valoración: ¿son separables los clústeres?
+5. Pesos de las variables (loadings) y visualización por segmento
+6. Regiones estratégicas del plano
+7. Valoración: ¿son separables los clústeres?
 '''))
 
 # --------------------------------------------------------------------------- #
@@ -282,19 +283,56 @@ Las variables binarias (furgoneta, telemetría, B2B, financiación) apenas pesan
 continuas estandarizadas, así que no definen ningún eje. Es una consecuencia buscada: evita que una característica minoritaria, como B2B, domine
 la proyección.
 '''))
-add(md('''
-### 5.2 Gráfico 2D (PC1 frente a PC2)
+add(md("""
+### 5.2 Segmento de cada cliente
+
+Para interpretar los gráficos coloreamos cada cliente por el **segmento** que le asignó K-Means en el cuaderno 03 (`clientes_clusters.csv`) y,
+si está disponible, con el nombre de negocio del cuaderno 04 (`clientes_segmentos_k6.csv`).
+
+El cruce se hace por `client_id` y se comprueba con `assert` que no se pierde ni se duplica ningún cliente: si algo no cuadrara, el cuaderno se
+detendría aquí en lugar de dibujar gráficos con datos incorrectos.
+"""))
+add(code(r"""FICHERO_CLUSTERS = DATA_DIR / "clientes_clusters.csv"
+FICHERO_NOMBRES = DATA_DIR / "clientes_segmentos_k6.csv"
+hay_clusters = FICHERO_CLUSTERS.exists()
+
+if hay_clusters:
+    etiquetas = pd.read_csv(FICHERO_CLUSTERS, usecols=["client_id", "cluster"], dtype={"client_id": str})
+    assert etiquetas["client_id"].is_unique, "clientes_clusters.csv tiene client_id duplicados"
+    assert set(etiquetas["client_id"]) == set(df_pca.index), "los clientes del PCA y de los clústeres no coinciden"
+
+    n_antes = len(df_pca)
+    df_pca = (df_pca.reset_index()
+                    .merge(etiquetas, on="client_id", how="left", validate="one_to_one")
+                    .set_index("client_id"))
+    assert len(df_pca) == n_antes and df_pca["cluster"].notna().all(), "el cruce ha perdido o duplicado clientes"
+
+    if FICHERO_NOMBRES.exists():
+        nombres = pd.read_csv(FICHERO_NOMBRES, usecols=["cluster", "segmento"]).drop_duplicates()
+        assert nombres["cluster"].is_unique, "un clúster tiene más de un nombre"
+        NOMBRE = dict(zip(nombres["cluster"], nombres["segmento"]))
+    else:
+        NOMBRE = {c: f"Clúster {c}" for c in df_pca["cluster"].unique()}
+    df_pca["segmento"] = [f"{c} · {NOMBRE[c]}" for c in df_pca["cluster"]]
+    ORDEN_SEG = sorted(df_pca["segmento"].unique())
+    PALETA = dict(zip(ORDEN_SEG, ps.SERIES))
+    print(f"Clientes con segmento: {df_pca['segmento'].notna().mean():.0%} de {len(df_pca):,}")
+    display(df_pca["segmento"].value_counts().reindex(ORDEN_SEG).rename("clientes").to_frame())
+else:
+    print("No se ha encontrado clientes_clusters.csv: ejecuta antes el cuaderno 03. Los gráficos se dibujarán sin colorear.")"""))
+add(md("""
+### 5.3 Gráfico 2D (PC1 frente a PC2) por segmento
 
 Dibujamos una muestra aleatoria de 25.000 clientes: con los 173.456 los puntos se taparían unos a otros. Los ejes se limitan al rango donde
-está el 99 % de los clientes, porque unas pocas cuentas con muchos vehículos quedan muy alejadas y aplastarían la nube. La función acepta una
-columna `hue` para colorear por clúster cuando se integra con K-Means.
-'''))
-add(code(r'''MUESTRA = df_pca.sample(25_000, random_state=42).index
+está el 99 % de los clientes, porque unas pocas cuentas con muchos vehículos quedan muy alejadas y aplastarían la nube. La función
+`grafico_pca_2d` recibe en `hue` la columna con la que colorear (aquí, el segmento).
+"""))
+add(code(r"""MUESTRA = df_pca.sample(25_000, random_state=42).index
 
 def grafico_pca_2d(datos, hue=None, titulo="Clientes en el plano PC1-PC2", fichero=None, paleta=None):
-    """Scatter PC1 vs PC2. Si `hue` es el nombre de una columna de `datos`, colorea por ella (p. ej. el clúster)."""
-    fig, ax = plt.subplots(figsize=(9, 7))
-    sns.scatterplot(data=datos, x="PC1", y="PC2", hue=hue, hue_order=sorted(paleta) if paleta else None, palette=paleta,
+    # Scatter PC1 vs PC2. Si `hue` es el nombre de una columna de `datos`, colorea por ella (p. ej. el segmento).
+    fig, ax = plt.subplots(figsize=(10, 7))
+    sns.scatterplot(data=datos, x="PC1", y="PC2", hue=hue, hue_order=list(paleta) if paleta else None, palette=paleta,
                     s=6, alpha=0.35, linewidth=0, ax=ax, color=None if hue else ps.SERIES[0])
     # Ejes limitados al rango del 99 % central de los clientes: unos pocos extremos (cuentas con muchos coches) aplastarían la nube
     ax.set_xlim(*df_pca["PC1"].quantile([0.005, 0.995])); ax.set_ylim(*df_pca["PC2"].quantile([0.005, 0.995]))
@@ -303,27 +341,36 @@ def grafico_pca_2d(datos, hue=None, titulo="Clientes en el plano PC1-PC2", fiche
     ax.set_ylabel(f"PC2 · posventa madura vs. multi-vehículo ({var[1]:.0%})")
     ax.set_title(titulo)
     if hue:
-        ax.legend(title="Clúster", markerscale=3, loc="upper left", bbox_to_anchor=(1.01, 1))
+        ax.legend(title="Segmento", markerscale=3, loc="upper left", bbox_to_anchor=(1.01, 1))
     if fichero:
         fig.savefig(FIG_DIR / fichero)
     plt.show()
 
-grafico_pca_2d(df_pca.loc[MUESTRA], fichero="A2_pca_2d.png")'''))
-add(md('''
-Los clientes forman una nube continua, más densa cerca del origen, sin grupos aislados a simple vista. Esto encaja con lo que vimos en el
-cuaderno 03 (silueta en torno a 0,1): la base de clientes es un continuo de perfiles más que un conjunto de islas.
-'''))
-add(md('''
-### 5.3 Gráfico 3D (PC1, PC2 y PC3)
-'''))
-add(code(r'''def grafico_pca_3d(datos, colores=None, titulo="Clientes en el espacio PC1-PC2-PC3", fichero=None, leyenda=None):
+if hay_clusters:
+    grafico_pca_2d(df_pca.loc[MUESTRA], hue="segmento", paleta=PALETA,
+                   titulo="Clientes en el plano PC1-PC2 por segmento (K-Means, k = 6)", fichero="A2_pca_2d_clusters.png")
+else:
+    grafico_pca_2d(df_pca.loc[MUESTRA], fichero="A2_pca_2d.png")"""))
+add(md("""
+Los clientes forman una nube continua, más densa cerca del origen, sin islas separadas. Aun así, los colores muestran **tendencias claras**:
+los segmentos con una relación más profunda con la marca se concentran a la derecha y los recién llegados y los más jóvenes, a la izquierda.
+Las zonas de cada segmento se solapan en los bordes, algo que cuantificamos en la sección 7.
+"""))
+add(md("""
+### 5.4 Gráfico 3D (PC1, PC2 y PC3) por segmento
+
+El tercer eje (PC3) separa a los clientes con coche antiguo y menos renta: añade la dimensión que el plano 2D no muestra.
+"""))
+add(code(r"""from matplotlib.lines import Line2D
+
+def grafico_pca_3d(datos, colores=None, titulo="Clientes en el espacio PC1-PC2-PC3", fichero=None, leyenda=None):
     # En 3D matplotlib no recorta los puntos fuera de los ejes: dibujamos solo el 99 % central de los clientes
     limites = {pc: df_pca[pc].quantile([0.005, 0.995]).to_numpy() for pc in ["PC1", "PC2", "PC3"]}
     dentro = np.logical_and.reduce([datos[pc].between(*lim) for pc, lim in limites.items()])
     datos = datos[dentro]
     if colores is not None:
         colores = colores[dentro]
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(11, 8))
     ax = fig.add_subplot(111, projection="3d")
     ax.scatter(datos["PC1"], datos["PC2"], datos["PC3"], c=colores if colores is not None else ps.SERIES[0],
                s=3, alpha=0.35, linewidths=0)
@@ -338,71 +385,104 @@ add(code(r'''def grafico_pca_3d(datos, colores=None, titulo="Clientes en el espa
         fig.savefig(FIG_DIR / fichero)
     plt.show()
 
-grafico_pca_3d(df_pca.loc[MUESTRA[:12_000]], fichero="A2_pca_3d.png")'''))
+m3 = MUESTRA[:12_000]
+if hay_clusters:
+    leyenda = [Line2D([0], [0], marker="o", color="w", markerfacecolor=PALETA[s], markersize=8, label=s) for s in ORDEN_SEG]
+    grafico_pca_3d(df_pca.loc[m3], colores=df_pca.loc[m3, "segmento"].map(PALETA),
+                   titulo="Espacio PC1-PC2-PC3 por segmento", fichero="A2_pca_3d_clusters.png", leyenda=leyenda)
+else:
+    grafico_pca_3d(df_pca.loc[m3], fichero="A2_pca_3d.png")"""))
 
 # --------------------------------------------------------------------------- #
-add(md('''
-## 6. Valoración: ¿son separables los clústeres?
+add(md("""
+## 6. Regiones estratégicas del plano
 
-Si existe el fichero de clústeres del cuaderno 03 (`clientes_clusters.csv`), añadimos el segmento de cada cliente y repetimos los gráficos
-coloreando por él.
-'''))
-add(code(r'''from matplotlib.lines import Line2D
-from sklearn.metrics import silhouette_score
+Para saber qué zonas del plano concentran a los clientes más valiosos, calculamos la **posición media de cada segmento** y la cruzamos con
+indicadores de valor de esos clientes: poder adquisitivo, uso del taller oficial, antigüedad como cliente, gama del vehículo y financiación.
+No disponemos de datos de facturación, así que estos indicadores son la mejor aproximación disponible al **valor** de cada perfil.
+"""))
+add(code(r"""if hay_clusters:
+    perfil = pd.read_csv(FICHERO_CLUSTERS, dtype={"client_id": str}, low_memory=False,
+                         usecols=["client_id", "purchasing_power_per_household_eur", "workshop_visits_total",
+                                  "months_as_mb_customer", "main_model_class", "finance_leasing_status"])
+    assert perfil["client_id"].is_unique
+    perfil = perfil.merge(df_pca[["segmento", "PC1", "PC2", "PC3"]].reset_index(), on="client_id", how="inner", validate="one_to_one")
+    assert len(perfil) == len(df_pca), "el cruce ha perdido clientes"
 
-FICHERO_CLUSTERS = DATA_DIR / "clientes_clusters.csv"
-hay_clusters = FICHERO_CLUSTERS.exists()
-if hay_clusters:
-    etiquetas = pd.read_csv(FICHERO_CLUSTERS, usecols=["client_id", "cluster"], dtype={"client_id": str}).set_index("client_id")
-    df_pca["cluster"] = etiquetas["cluster"].reindex(df_pca.index)
-    print(f"Clientes con clúster asignado: {df_pca.cluster.notna().mean():.1%}")
-    df_pca["cluster"] = df_pca["cluster"].astype("Int64").astype(str)
-else:
-    print("No se ha encontrado clientes_clusters.csv: ejecuta antes el cuaderno 03 para colorear por clúster.")'''))
-add(code(r'''if hay_clusters:
-    orden = sorted(df_pca["cluster"].unique())
-    paleta = dict(zip(orden, ps.SERIES))
-    grafico_pca_2d(df_pca.loc[MUESTRA], hue="cluster", paleta=paleta,
-                   titulo="Clientes en el plano PC1-PC2, coloreados por clúster (K-Means, k = 6)", fichero="A2_pca_2d_clusters.png")
+    perfil["gama_superior"] = perfil["main_model_class"].map(mf.SEGMENT_TIER) >= 3
+    regiones = perfil.groupby("segmento").agg(
+        PC1=("PC1", "mean"), PC2=("PC2", "mean"),
+        clientes_pct=("PC1", lambda x: len(x) / len(perfil) * 100),
+        poder_adquisitivo_k=("purchasing_power_per_household_eur", lambda x: x.mean() / 1000),
+        posventa_pct=("workshop_visits_total", lambda x: (x > 0).mean() * 100),
+        meses_cliente=("months_as_mb_customer", "mean"),
+        gama_superior_pct=("gama_superior", lambda x: x.mean() * 100),
+        financiacion_activa_pct=("finance_leasing_status", lambda x: x.str.startswith("active").mean() * 100),
+    ).reindex(ORDEN_SEG)
 
-    centros = df_pca.groupby("cluster")[["PC1", "PC2", "PC3"]].mean()
-    fig, ax = plt.subplots(figsize=(8, 6))
-    for cl, fila in centros.iterrows():
-        ax.scatter(fila.PC1, fila.PC2, s=260, color=paleta[cl], edgecolor="white", linewidth=2, zorder=3)
-        ax.annotate(f"Clúster {cl}", (fila.PC1, fila.PC2), xytext=(10, 6), textcoords="offset points", fontsize=10)
+    fig, ax = plt.subplots(figsize=(10, 6.5))
+    ax.axvspan(0, 10, color=ps.SERIES[2], alpha=0.06)
+    ax.text(0.05, 1.25, "Relación profunda con la marca (PC1 > 0)", fontsize=9, color=ps.INK_2)
+    for seg, fila in regiones.iterrows():
+        ax.scatter(fila.PC1, fila.PC2, s=fila.clientes_pct * 60, color=PALETA[seg], alpha=0.85, edgecolor="white", linewidth=2, zorder=3)
+        # Si otro segmento está muy cerca y por debajo, la etiqueta va encima para que no se pisen
+        cerca_debajo = ((regiones.PC1 - fila.PC1).abs() < 0.4) & ((regiones.PC2 - fila.PC2).abs() < 0.4) & (regiones.PC2 < fila.PC2)
+        arriba = cerca_debajo.any()
+        ax.annotate(f"{seg.split(' · ')[1]}\n{fila.poder_adquisitivo_k:.0f} k€ · {fila.posventa_pct:.0f} % taller",
+                    (fila.PC1, fila.PC2), xytext=(0, 20 if arriba else -30), textcoords="offset points", ha="center",
+                    va="bottom" if arriba else "baseline", fontsize=8.5, color=ps.INK)
     ax.axhline(0, color=ps.INK_2, lw=0.6, ls="--"); ax.axvline(0, color=ps.INK_2, lw=0.6, ls="--")
+    ax.set_xlim(-1.4, 1.4); ax.set_ylim(-1.4, 1.4)
     ax.set_xlabel("PC1 · profundidad de la relación"); ax.set_ylabel("PC2 · posventa madura vs. multi-vehículo")
-    ax.set_title("Posición media de cada clúster en el plano PC1-PC2")
+    ax.set_title("Posición media de cada segmento e indicadores de valor (tamaño = % de clientes)")
     fig.savefig(FIG_DIR / "A2_centros_clusters.png"); plt.show()
-    display(centros.round(2))'''))
-add(code(r'''if hay_clusters:
-    leyenda = [Line2D([0], [0], marker="o", color="w", markerfacecolor=paleta[cl], markersize=8, label=f"Clúster {cl}") for cl in orden]
-    m3 = MUESTRA[:12_000]
-    grafico_pca_3d(df_pca.loc[m3], colores=df_pca.loc[m3, "cluster"].map(paleta),
-                   titulo="Espacio PC1-PC2-PC3 coloreado por clúster", fichero="A2_pca_3d_clusters.png", leyenda=leyenda)
+    display(regiones.round(2))"""))
+add(md("""
+**Qué regiones ocupan los perfiles más estratégicos:**
 
-    # Medida objetiva de separación: silueta de los clústeres en el espacio del PCA (muestra de 20.000 clientes)
+- **La mitad derecha (PC1 > 0) es la zona de mayor valor.** Ahí se sitúan el Fiel del Taller Oficial, el Ejecutivo Premium AMG y el Conductor
+  en Leasing: los tres segmentos con mayor poder adquisitivo y con casi todos sus clientes usando el taller oficial. Juntos suman algo más de la
+  mitad de la base y son el núcleo de ingresos recurrentes de la marca (posventa, financiación y gama alta).
+- **La esquina superior derecha es la del cliente más rentable para la posventa:** el Fiel del Taller Oficial combina la relación más larga, el
+  mayor poder adquisitivo y el uso más intenso del taller. Es el perfil a retener a toda costa.
+- **El Ejecutivo Premium AMG y el Conductor en Leasing quedan a la derecha, cerca del eje horizontal:** relación profunda, pero con vehículos
+  más recientes. Su valor está en la **gama alta** (el primero) y en la **financiación** (el segundo).
+- **La mitad izquierda (PC1 < 0) es la zona de oportunidad y de riesgo:** el Sénior Recién Llegado (abajo, clientes nuevos), el Joven
+  Aspiracional (a la izquierda, cerca del eje) y el Veterano a Renovar (arriba, por su coche antiguo). Tienen menor poder adquisitivo y usan mucho menos el taller oficial. Aquí está
+  el crecimiento: consolidar a los nuevos, captar a los jóvenes y renovar el coche de los veteranos antes de que se vayan.
+"""))
+
+# --------------------------------------------------------------------------- #
+add(md("""
+## 7. Valoración: ¿son separables los clústeres?
+
+Medimos la separación de forma objetiva con la **silueta de los clústeres en el espacio del PCA** (muestra de 20.000 clientes): valores cercanos
+a 1 indicarían grupos bien separados en estos ejes y valores cercanos a 0 o negativos, grupos solapados.
+"""))
+add(code(r"""from sklearn.metrics import silhouette_score
+
+if hay_clusters:
     m = df_pca.sample(20_000, random_state=0)
     sil_2d = silhouette_score(m[["PC1", "PC2"]], m["cluster"])
     sil_3d = silhouette_score(m[["PC1", "PC2", "PC3"]], m["cluster"])
-    print(f"Silueta de los clústeres en el plano 2D: {sil_2d:.3f} · en el espacio 3D: {sil_3d:.3f}")'''))
-add(md('''
+    print(f"Silueta de los clústeres en el plano 2D: {sil_2d:.3f} · en el espacio 3D: {sil_3d:.3f}")"""))
+add(md("""
 **Valoración.** En la proyección del PCA los clústeres **no son visualmente separables**: sus nubes se solapan y la silueta medida en el plano
 2D y en el espacio 3D es negativa o cercana a cero. Sí se distinguen sus **posiciones medias**, que caen en zonas distintas del plano y encajan
-con los perfiles del reto 4 (por ejemplo, el clúster de clientes más fieles queda arriba a la derecha y el de recién llegados, abajo a la izquierda).
+con los perfiles del reto 4 (sección 6).
 
 Hay dos motivos para el solapamiento:
 
 1. **Los ejes solo recogen parte de la información** (alrededor del 40 % en 2D y del 52 % en 3D).
 2. **K-Means se entrenó con variables que este PCA no incluye o apenas pondera**, como el tipo de financiación y la motorización (en one-hot).
-   Por ejemplo, el segmento "Conductor en Leasing" se define sobre todo por la financiación activa, una variable binaria con poco peso en estos ejes.
+   Por ejemplo, el Conductor en Leasing se define sobre todo por la financiación activa, una variable binaria con poco peso en estos ejes.
 
 La conclusión práctica es que la segmentación captura diferencias reales de perfil, pero entre clientes que forman un **continuo**: los segmentos
 son útiles para orientar acciones de marketing, no grupos aislados con fronteras nítidas.
-'''))
-add(code(r'''df_pca.to_csv(DATA_DIR / "pca_clientes.csv")
+"""))
+add(code(r"""df_pca.to_csv(DATA_DIR / "pca_clientes.csv")
 loadings.to_csv(ROOT / "reports" / "A2_loadings_pca.csv")
-print("Guardado: data/pca_clientes.csv (componentes por cliente) y reports/A2_loadings_pca.csv")'''))
+print("Guardado: data/pca_clientes.csv (componentes y segmento por cliente) y reports/A2_loadings_pca.csv")"""))
 
 if __name__ == "__main__":
     save("avanzado_2_pca.ipynb", cells)

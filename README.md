@@ -14,13 +14,12 @@ notebooks/
                                 y pipeline completo → data/clientes_features.csv, data/X_model_fe2.pkl
   03_kmeans.ipynb               Reto 3 · K-Means con k = 2…20: codo, silueta, Davies-Bouldin,
                                 k = 6 justificado y distribución → data/clientes_clusters.csv
-  04_segmentos_2.ipynb          Reto 4 · Perfilado de los 6 segmentos, buyer personas, heatmap, radar y acciones
-  04_segmentos.ipynb            Reto 4 · Versión anterior (5 segmentos sobre las features antiguas)
+  04_segmentos.ipynb            Reto 4 · Perfilado de los 6 segmentos, buyer personas, KPIs de valor, mapa de oportunidades y campañas
   avanzado_1_comparativa.ipynb  Reto avanzado 1 · K-Means frente a GMM, Agglomerative y DBSCAN con k = 6
   avanzado_2_pca.ipynb          Reto avanzado 2 · PCA (2D y 3D), varianza explicada, loadings y separabilidad de los clústeres
   _build_fe2.py                 Genera el notebook 02_feature_engineering
   _build_kmeans2.py             Genera el notebook 03_kmeans
-  _build_segmentos2.py          Genera el notebook 04_segmentos_2
+  _build_segmentos2.py          Genera el notebook 04_segmentos
   _build_comparativa.py         Genera el notebook avanzado_1_comparativa
   _build_pca.py                 Genera el notebook avanzado_2_pca
   _build_notebooks.py           Utilidades comunes para los generadores (ya no genera notebooks)
@@ -43,7 +42,7 @@ Los datos **no** se suben al repositorio (datos reales de clientes, ~100 MB). Co
 ```bash
 pip install -r requirements.txt duckdb
 jupyter nbconvert --to notebook --execute --inplace notebooks/01_eda.ipynb notebooks/02_feature_engineering.ipynb \
-    notebooks/03_kmeans.ipynb notebooks/04_segmentos_2.ipynb
+    notebooks/03_kmeans.ipynb notebooks/04_segmentos.ipynb
 ```
 
 El 02 guarda en `data/` la tabla de clientes y la matriz del modelo, el 03 añade el clúster de cada cliente y el 04 lo interpreta.
@@ -85,7 +84,7 @@ clientes con el vehículo más antiguo, el público de las campañas de renovaci
 | **El Veterano a Renovar** | 12,4 % | Vehículo de unos 9 años, casi todo combustión, sin financiación y con riesgo de fuga | Plan de cambio con tasación y recuperación de posventa |
 | **El Fiel del Taller Oficial** | 19,3 % | Los clientes más antiguos y con más poder adquisitivo; los que más usan el taller; compran al contado | Programa VIP y extensión de garantía |
 
-La ficha completa de cada segmento está en el notebook `04_segmentos_2.ipynb` y en `reports/fichas_segmentos_k6.csv`.
+La ficha completa de cada segmento está en el notebook `04_segmentos.ipynb`, con sus KPIs (`reports/kpis_segmentos_k6.csv`) y campañas cuantificadas (`reports/campanas_segmentos_k6.csv`).
 
 ## Reto avanzado 1 · Comparativa de algoritmos
 
