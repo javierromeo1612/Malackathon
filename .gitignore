@@ -1,0 +1,11 @@
+# Datos de clientes: no se suben al repositorio (datos reales, ~100 MB)
+*.csv
+!reports/*.csv
+data/
+*.pdf
+
+# Python / Jupyter
+__pycache__/
+.ipynb_checkpoints/
+*.pyc
+.venv/
