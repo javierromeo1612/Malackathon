@@ -3,7 +3,7 @@
 Segmentación de la base de clientes de Mercedes-Benz (Suiza y Austria) con **K-Means** para habilitar
 ofertas de vehículos, planes de mantenimiento, campañas de fidelización y comunicaciones dirigidas.
 
-Este repositorio cubre los **4 retos básicos**. Los retos avanzados (comparativa de algoritmos, PCA y Jackknife) se añadirán después.
+Este repositorio cubre los **4 retos básicos** y el **reto avanzado 2 (PCA)**. Los retos avanzados 1 (comparativa de algoritmos) y 3 (Jackknife) se añadirán después.
 
 ## Estructura
 
@@ -16,9 +16,11 @@ notebooks/
                                 k = 6 justificado y distribución → data/clientes_clusters.csv
   04_segmentos_2.ipynb          Reto 4 · Perfilado de los 6 segmentos, buyer personas, heatmap, radar y acciones
   04_segmentos.ipynb            Reto 4 · Versión anterior (5 segmentos sobre las features antiguas)
+  avanzado_2_pca.ipynb          Reto avanzado 2 · PCA (2D y 3D), varianza explicada, loadings y separabilidad de los clústeres
   _build_fe2.py                 Genera el notebook 02_feature_engineering
   _build_kmeans2.py             Genera el notebook 03_kmeans
   _build_segmentos2.py          Genera el notebook 04_segmentos_2
+  _build_pca.py                 Genera el notebook avanzado_2_pca
   _build_notebooks.py           Utilidades comunes para los generadores (ya no genera notebooks)
 src/
   plot_style.py                 Estilo común de gráficos
@@ -82,3 +84,13 @@ clientes con el vehículo más antiguo, el público de las campañas de renovaci
 | **El Fiel del Taller Oficial** | 19,3 % | Los clientes más antiguos y con más poder adquisitivo; los que más usan el taller; compran al contado | Programa VIP y extensión de garantía |
 
 La ficha completa de cada segmento está en el notebook `04_segmentos_2.ipynb` y en `reports/fichas_segmentos_k6.csv`.
+
+## Reto avanzado 2 · PCA
+
+![PCA por clúster](reports/figures/A2_pca_2d_clusters.png)
+
+PCA sobre 12 features de negocio (log1p + `StandardScaler`): PC1 explica el 22,5 %, PC2 el 16,7 % y PC3 el 12,5 %
+(39,2 % en 2D y 51,7 % en 3D). **PC1** mide la profundidad de la relación con la marca (antigüedad, vehículos, conectividad, taller) y
+**PC2** enfrenta al cliente maduro de posventa con el multi-vehículo. Los centros de los clústeres caen en zonas distintas del plano, pero sus
+nubes se solapan (silueta ≈ 0 en el espacio del PCA): los clientes forman un continuo de perfiles.
+
