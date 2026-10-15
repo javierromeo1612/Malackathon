@@ -1,6 +1,6 @@
 """Genera la documentación de los retos básicos en notebooks/docs/ (PDF):
 
-    RETO_1_BÁSICO_MERCEDES.pdf      · Exploración y calidad de datos
+    RETO 1 BÁSICO- MERCEDES.pdf      · Exploración y calidad de datos
     RETO 2 BÁSICO - MERCEDES.pdf    · Feature engineering
     RETO 3 BÁSICO - MERCEDES.pdf    · Selección del número óptimo de clusters
 
@@ -220,7 +220,7 @@ def reto1():
               ["Variables sensibles inferidas (<i>gender_derived</i>)",
                "Fuera del modelo, para no segmentar por un atributo que el cliente no ha declarado."],
           ], [6.2 * cm, 10.8 * cm], envolver=True)]
-    construir("RETO_1_BÁSICO_MERCEDES.pdf", h, max_paginas=3)
+    construir("RETO 1 BÁSICO- MERCEDES.pdf", h, max_paginas=3)
 
 
 # --------------------------------------------------------------------------- #
