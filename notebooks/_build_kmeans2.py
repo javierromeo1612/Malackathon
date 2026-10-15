@@ -9,6 +9,9 @@ from _build_notebooks import SETUP, code, md, save
 cells = []
 add = cells.append
 
+# Este notebook no usa el CSV original: quitamos de la cabecera común la línea que lo localiza
+SETUP_SIN_CSV = SETUP.split("\nCSV = next(")[0]
+
 add(md('''
 # Reto 3 · Modelo de clustering K-Means
 
@@ -39,7 +42,7 @@ Trabajamos con dos tablas generadas en el cuaderno 02:
 El escalado es imprescindible porque K-Means agrupa por **distancia**: sin él, una variable en euros (poder adquisitivo) pesaría miles de veces
 más que una en años.
 '''))
-add(code(SETUP + r'''
+add(code(SETUP_SIN_CSV + r'''
 
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
