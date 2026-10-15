@@ -10,37 +10,19 @@ cells = []
 add = cells.append
 
 # =========================================================================== #
-add(md('''
-# Reto 2 · Feature engineering (versión 2)
+add(md('''# Reto 2 · Feature engineering
 
 **Malackathon 2026 · Mercedes-Benz · "Clustering the Star"**
 
-Este cuaderno prepara los datos que alimentarán el clustering. Parte de:
-- **Parte 1 (`01_eda.ipynb`)**: su tabla de *propuesta de tratamiento* de nulos, su decisión de trabajar con **1 fila = 1 cliente** y las columnas que excluye.
-- **Parte 2 antigua (`02_feature_engineering.ipynb`)**: se reutiliza la idea del "vehículo principal" y del pipeline, mejorados.
-- **El listado de 10 features derivadas** acordado por el grupo.
+Objetivo: seleccionar y preparar las variables con las que segmentaremos a los clientes. Este notebook cubre:
 
-Lo que pide el reto y dónde se cubre:
+- A. Tratamiento de nulos
+- B. Agregación a una fila por cliente
+- C. Features derivadas
+- D. Selección de features para el modelo
+- E. Pipeline de transformación
+- F. CSV final de clientes'''))
 
-| Requisito del reto | Sección |
-|---|---|
-| Tratamiento de nulos columna a columna (según la Parte 1) | **A** |
-| Agregación a 1 fila por cliente | **B** |
-| Creación de features derivadas, con cálculo y columnas de origen (pandas + SQL) | **C** |
-| Selección justificada de features | **D** |
-| Codificación de categóricas, imputación y escalado de numéricas | **E** |
-| Pipeline que encapsula todo el proceso | **E** |
-| CSV final de clientes con nulos tratados y features derivadas | **F** |
-
-```
-CSV crudo (302.850 filas cliente-vehículo)
-   │  A. TratamientoNulos      → cada columna según su naturaleza
-   │  B. AgregacionClientes    → 1 fila por cliente + vehículo principal
-   │  C. FeaturesDerivadas     → 8 features derivadas calculables
-   ▼
-CSV de clientes (173.456 filas, 0 nulos)  ──►  E. Preprocesado (codificación + escalado)  ──►  matriz para K-Means
-```
-'''))
 add(code(SETUP + r'''
 
 import duckdb
@@ -57,34 +39,24 @@ print(f"{len(raw):,} filas · {raw.shape[1]} columnas · {raw.client_id.nunique(
 
 # =========================================================================== #
 add(md('''---
-# A. Tratamiento de nulos (a nivel fila cliente-vehículo)
+## A. Tratamiento de nulos
 
-Los nulos se tratan **antes** de agregar a cliente, porque muchos se pueden deducir de otras columnas del mismo vehículo.
+A partir de las conclusiones del cuaderno 01, eliminamos las columnas que no aportan valor analítico: el índice exportado, los identificadores,
+las modas con varios valores, los contadores técnicos y las métricas de telemetría, que sustituimos por el indicador `has_telemetry`.
 
-**Principios** (el nulo de cada columna se gestiona según lo que significa esa columna):
-1. Si el valor **se puede deducir** de otras columnas, se deduce, pero solo con reglas **validadas** (escondemos valores conocidos y comprobamos que los acertamos).
-2. Si **no se puede deducir con fiabilidad**, no se inventa: categoría `UNKNOWN` (categóricas) o mediana de un grupo comparable **marcada con un indicador** (numéricas).
-3. Si la falta es **estructural** (el dato no existe), se convierte en un indicador (`has_telemetry`) y las columnas se **eliminan** del conjunto final.
-
-Partimos de la propuesta de la Parte 1 y la **mejoramos** en dos puntos:
-
-| Columna | Parte 1 proponía | Aquí hacemos | Por qué |
-|---|---|---|---|
-| `engine_concept` | Inferir del nombre; lo no detectable → combustión | Cascada validada; lo no deducible → `UNKNOWN` | Un nulo **no** es combustión: podría ser eléctrico o híbrido |
-| `fuel_type` | No usar | Se trata igual (reglas validadas + `UNKNOWN`) | El CSV final debe quedar sin nulos y con datos fiables |
-| Resto | | Igual que la Parte 1, con validación | |'''))
-add(code(r'''nulos = raw.isna().sum()
-panorama = pd.DataFrame({"nulos": nulos, "% nulos": (nulos / len(raw) * 100).round(2)})
-panorama[panorama.nulos > 0].sort_values("nulos", ascending=False)'''))
+En el resto de columnas tratamos los nulos según la naturaleza de cada una:
+- Si el valor se puede deducir de otras columnas (`model_class`, `engine_concept`, `fuel_type`), lo deducimos con reglas que validamos ocultando valores conocidos.
+- Si no se puede deducir con fiabilidad, usamos la categoría `UNKNOWN`. Un motor sin dato no se convierte en combustión.
+- En las variables numéricas de contexto (fecha, antigüedad, zona) imputamos la mediana de un grupo comparable y lo marcamos con un indicador.'''))
 
 add(md('''### A.0 Herramientas de imputación
 
-Para las categóricas deducibles usamos una **cascada**: primero reglas deterministas (validadas, ≥ 98 % de precisión);
-después *tablas de consulta aprendidas de los propios datos* ("los coches con este nombre y este año, ¿qué valor tienen casi siempre?"),
-aceptadas solo si el valor se repite mucho (**pureza**) en suficientes coches (**soporte**). Si nada es fiable → `UNKNOWN`.
+Para deducir valores usamos una cascada: primero reglas basadas en el nombre del coche y después tablas aprendidas de los propios datos
+(qué valor tienen casi siempre los coches con el mismo nombre, año o serie). Cada nivel solo se acepta si es fiable; si ninguno lo es, el valor queda como `UNKNOWN`.
 
-La validación esconde el 20 % de los valores conocidos de dos formas: **al azar** (optimista) y **por nombre de coche** (todos los coches de
-un mismo modelo a la vez, que simula modelos nunca vistos, el caso realista).'''))
+Para validarlo escondemos el 20 % de los valores conocidos y comprobamos si los acertamos, de dos formas: al azar y por nombre de coche
+(esta última simula modelos que nunca se han visto con el dato).'''))
+
 add(code(r'''def make_key(d, cols):
     """Clave 'a|b|c'. Si falta algún componente (o vale UNKNOWN), la clave es nula y no se usa."""
     k = None
@@ -164,13 +136,11 @@ def fuentes(before_null, src):
     return t'''))
 
 # --------------------------------------------------------------------------- #
-add(md('''### A.1 `Unnamed: 0`, `date_of_first_registration` (preparación) y `vehicle_type`
+add(md('''### A.1 Índice, fechas y `vehicle_type`
 
-- **`Unnamed: 0`**: índice exportado (0, 1, 2…). Sin nulos y sin significado → **se elimina** (Parte 1).
-- **Fecha**: se convierte a fecha. Las 2 matriculaciones de 1987 son imposibles en coches conectados → **nulo** (se imputan en A.5).
-  Guardamos el año original porque el motor de un coche depende del año.
-- **`vehicle_type`** (0,3 %): es el nombre comercial exacto (`C 200 d`). **No es reconstruible** (la clase dice "Citan", no qué versión) → `UNKNOWN`.
-  Esos coches conservan `model_series`, `model_class` y `product_group`.'''))
+Eliminamos el índice exportado y pasamos a nulo las dos matriculaciones de 1987 detectadas en el cuaderno 01. El `vehicle_type` nulo queda como
+`UNKNOWN`, porque el nombre comercial exacto no se puede reconstruir.'''))
+
 add(code(r'''df = raw.drop(columns="Unnamed: 0").copy()
 df["date_of_first_registration"] = pd.to_datetime(df["date_of_first_registration"], errors="coerce")
 absurdas = df.date_of_first_registration < "2000-01-01"
@@ -182,10 +152,10 @@ print(f"vehicle_type nulo: {df.vehicle_type.isna().sum():,} ->", df.loc[df.vehic
 df["vehicle_type"] = df.vehicle_type.fillna("UNKNOWN")
 df["type_prefix"] = df.vehicle_type.str.replace(r"^(?:MERCEDES-)?AMG\s+", "", regex=True).str.split().str[0]'''))
 
-add(md('''### A.2 `model_class` (1,1 %) → deducida del nombre del coche
+add(md('''### A.2 `model_class`
 
-Un `GLC 400 4MATIC` es un GLC. Dejamos que los datos digan qué clase tienen los demás coches con el **mismo nombre** (o, si no hay suficientes,
-el mismo **prefijo**: `GLC`, `EQA`…). Si no hay evidencia → `UNKNOWN`.'''))
+La clase se deduce del nombre del coche (un `GLC 400 4MATIC` es un GLC): primero con el nombre exacto y, si no hay suficientes coches, con su prefijo.'''))
+
 add(code(r'''MC_LEVELS = [("nombre exacto", ["vehicle_type"], 3, 0.95),
              ("prefijo del nombre", ["type_prefix"], 20, 0.90)]
 display(pd.DataFrame([holdout_eval(df, "model_class", MC_LEVELS),
@@ -194,21 +164,12 @@ was_null = df.model_class.isna()
 df["model_class"], src = cascade_impute(df, "model_class", MC_LEVELS)
 fuentes(was_null, src)'''))
 
-add(md('''### A.3 `engine_concept` (44 %) → cascada validada, **nunca "combustión por defecto"**
+add(md('''### A.3 `engine_concept`
 
-Un coche sin dato de motor **no es** necesariamente de combustión. Lo deducimos solo cuando hay evidencia:
+Es la columna más delicada: un coche sin dato de motor no tiene por qué ser de combustión. Aplicamos, por orden: los nombres `EQ…` son eléctricos
+y los sufijos `e`/`de` son híbridos enchufables; después, el motor que tienen los demás coches con el mismo nombre y año, el mismo nombre,
+la misma serie y año o la misma clase y año. Si ninguno es fiable, queda `UNKNOWN`.'''))
 
-| Orden | Nivel | Qué mira | Exigencia |
-|---|---|---|---|
-| 1 | Regla: nombre `EQ…` → `ELECTRIC` | Nombre | precisión ≥ 98 % comprobada |
-| 2 | Regla: sufijo `e` / `de` (`C 300 e`, `GLC 300 de`) → `PLUGIN_HYBRID` | Nombre | precisión ≥ 98 % comprobada |
-| 3 | Nombre + año | Motor de los demás coches con ese nombre y año | pureza 95 %, ≥ 5 coches |
-| 4 | Nombre | Idem solo con el nombre | pureza 90 %, ≥ 20 coches |
-| 5 | Serie + año | Idem con el número de serie | pureza 90 %, ≥ 20 coches |
-| 6 | Clase + año | Idem con la clase | pureza 90 %, ≥ 20 coches |
-| — | Nada fiable | `UNKNOWN` | |
-
-El año importa: el mismo `GLC 220 d 4MATIC` es `COMBUSTION` unos años y `MILD_HYBRID` otros.'''))
 add(code(r'''EQ_RE = r"^(?:MERCEDES-)?(?:AMG\s+)?EQ[A-Z]"
 PHEV_RE = r"(?<=\d)\s?d?e\b"
 
@@ -235,16 +196,14 @@ ax.bar(x - 0.2, engine_before.value_counts().reindex(orden).fillna(0), 0.38, col
 ax.bar(x + 0.2, df.engine_concept.value_counts().reindex(orden), 0.38, color=ps.SERIES[1], label="Después")
 ax.set_xticks(x, orden); ax.set_title("engine_concept antes y después del tratamiento"); ax.legend()
 fig.savefig(FIG_DIR / "02b_engine_antes_despues.png"); plt.show()'''))
-add(md('''En las dos validaciones, **cuando la cascada decide, acierta**. Los coches sin evidencia quedan como `UNKNOWN`, que en el modelo será
-una categoría más (one-hot), no una combustión inventada.'''))
+add(md('''En las dos validaciones, cuando la cascada decide, acierta. Los coches sin evidencia quedan como `UNKNOWN`, que en el modelo será una categoría más.'''))
 
-add(md('''### A.4 `fuel_type` (59 %) → reglas validadas usando el motor ya tratado
+add(md('''### A.4 `fuel_type`
 
-- Un eléctrico siempre es `ELECTRIC`.
-- Un nombre diésel (`220 d`, `300 de`, `CDI`) con motor de combustión o mild-hybrid → `DIESEL`; con híbrido enchufable → `DIESEL,ELECTRIC`.
-- Mismo nombre + mismo motor ya visto con combustible conocido → ese combustible.
-- **No** usamos niveles más generales (serie, clase): en modelos no diésel el nombre no distingue `PETROL` de `PETROL_PLUS`, y probándolos
-  con modelos nunca vistos fallaban más de la mitad de las veces. Lo no deducible → `UNKNOWN`.'''))
+Usamos el motor ya tratado y el nombre del coche: un eléctrico es `ELECTRIC`, y un nombre diésel (`220 d`, `300 de`) es `DIESEL` o
+`DIESEL,ELECTRIC` según el motor. Si el mismo modelo con el mismo motor ya aparece con combustible, se copia. En el resto el nombre
+no distingue `PETROL` de `PETROL_PLUS`, así que queda `UNKNOWN`.'''))
+
 add(code(r'''DIESEL_RE = r"(?<=\d)\s?d(?:e)?\b|\bCDI\b|\bBlueTEC\b"
 
 def add_diesel_flag(d):
@@ -268,11 +227,11 @@ was_null = df.fuel_type.isna()
 df["fuel_type"], src = cascade_impute(df, "fuel_type", FUEL_LEVELS, FUEL_RULES)
 fuentes(was_null, src)'''))
 
-add(md('''### A.5 `date_of_first_registration` (1,4 %) → mediana de la serie del modelo
+add(md('''### A.5 `date_of_first_registration`
 
-La fecha exacta no se puede deducir, pero cada serie **se vende en una ventana de años limitada**. Imputamos la mediana de fecha de los
-coches de la **misma serie** y lo validamos frente al relleno ingenuo (mediana global). Se marca con `registration_date_imputed`
-porque de esta fecha sale la feature principal del reto (antigüedad del vehículo).'''))
+Cada serie se vende durante un periodo de años limitado, así que imputamos la mediana de fecha de los coches de la misma serie.
+Las fechas imputadas quedan marcadas en `registration_date_imputed`.'''))
+
 add(code(r'''epoch = pd.Timestamp("2000-01-01")
 days = (df.date_of_first_registration - epoch).dt.days
 rng = np.random.default_rng(0); known = days.notna(); hide = known & (rng.random(len(df)) < 0.2)
@@ -287,33 +246,29 @@ days = days.fillna(df.assign(days=days).groupby("model_series").days.transform("
 df["date_of_first_registration"] = epoch + pd.to_timedelta(days.round(), unit="D")
 print(f"Fechas imputadas: {df.registration_date_imputed.sum():,}")'''))
 
-add(md('''### A.6 `gender_derived` (11 %) → `UNKNOWN`, sin imputar
+add(md('''### A.6 `gender_derived`
 
-Es un dato **inferido**, no declarado, y sus nulos **no son aleatorios**:'''))
+Como se concluyó en el cuaderno 01, es un dato inferido y no entra en el modelo. No lo imputamos con la moda, porque sus nulos se concentran en
+usuarios secundarios y en los extremos de edad: queda como `UNKNOWN`.'''))
+
 add(code(r'''g = raw.gender_derived.isna()
 display(pd.concat({"según rol": g.groupby(raw.role).mean(), "según edad": g.groupby(raw.age_range).mean()}).mul(100).round(1).to_frame("% nulo"))
 df["gender_derived"] = df.gender_derived.fillna("UNKNOWN")
 print("Género conocido:", raw.gender_derived.value_counts(normalize=True).round(2).to_dict())'''))
-add(md('''Falta mucho más en usuarios secundarios (`USER`, `TEMP_USER`) y en los extremos de edad: **que falte ya es información**.
-Rellenar con la moda (hombre) atribuiría un género sin base a miles de personas. Queda como categoría `UNKNOWN`. Además, como dice la Parte 1,
-**no entra en el modelo** (riesgo de sesgo).'''))
+add(md('''### A.7 `months_as_mb_customer`
 
-add(md('''### A.7 `months_as_mb_customer` (4 filas) → mediana de clientes comparables
+Son 4 filas de 2 clientes sin vehículos conectados. Imputamos la mediana de los clientes con el mismo número de vehículos conectados.'''))
 
-Son 2 clientes, ambos con **0 vehículos conectados**. Los clientes en esa situación tienen una antigüedad mediana distinta de la global,
-así que imputamos la mediana de su grupo (mismo nº de vehículos conectados).'''))
 add(code(r'''grp = df.groupby("currently_connected_vehicles").months_as_mb_customer
 print("Mediana grupo 0 vehículos:", grp.median().get(0), "· mediana global:", df.months_as_mb_customer.median())
 df["months_as_mb_customer"] = df.months_as_mb_customer.fillna(grp.transform("median")).fillna(df.months_as_mb_customer.median())'''))
 
-add(md('''### A.8 Zona: `zipcode` y variables socioeconómicas (5-6 %)
+add(md('''### A.8 Código postal y variables de zona
 
-- Faltan **todas a la vez** (cliente sin código postal o código postal no casado con la tabla de zonas): no hay ninguna que se deduzca de otra.
-- `population = 0` (73 filas) son zonas sin datos → **nulo** (Parte 1).
-- Austria y Suiza son económicamente muy distintas y el país **nunca** es nulo → **mediana del país**.
-- `purchasing_power_millions_eur` cumple exactamente `= pp_por_habitante × población / 1e6` → **se recalcula** en vez de imputarse por separado.
-- `zipcode` es un identificador → `UNKNOWN` (y, como dice la Parte 1, no entra en el modelo).
-- Se marca con `socio_imputed`.'''))
+Las variables de zona faltan todas a la vez, así que no se pueden deducir unas de otras. Imputamos la mediana del país, porque Austria y Suiza
+son muy distintas, y lo marcamos en `socio_imputed`. `purchasing_power_millions_eur` se recalcula como poder adquisitivo por habitante × población,
+y `zipcode` queda como `UNKNOWN`.'''))
+
 add(code(r'''ZONE_COLS = ["purchasing_power_per_inhabitant_eur", "purchasing_power_per_household_eur", "population", "number_of_households"]
 ok = raw.dropna(subset=ZONE_COLS + ["purchasing_power_millions_eur"])
 rel = (ok.purchasing_power_per_inhabitant_eur * ok.population / 1e6 / ok.purchasing_power_millions_eur - 1).abs().median()
@@ -329,23 +284,20 @@ df.loc[df.socio_imputed, "purchasing_power_millions_eur"] = (df.purchasing_power
 df["zipcode"] = df.zipcode.fillna("UNKNOWN")
 print(f"Filas con datos de zona imputados: {df.socio_imputed.sum():,}")'''))
 
-add(md('''### A.9 Telemetría (~60 %) → indicador `has_telemetry` y **eliminación** de las métricas
+add(md('''### A.9 Telemetría
 
-`trip_*`, `speed_*`, `operating_hours_total`, `fuel_consumption_average`: el nulo significa "este coche **no envía** datos de conducción".
-Imputar el 60 % crearía una masa artificial de "conductores medianos" que K-Means convertiría en un cluster (Parte 1).
+Como se vio en el cuaderno 01, la telemetría falta porque el coche no envía datos, así que no la imputamos. Calculamos qué bloques de datos
+tiene cada coche para construir `has_telemetry` (C.5); las métricas no pasan al CSV final.'''))
 
-**Decisión (acordada por el grupo):** se convierte en el indicador **`has_telemetry`** (ver C.7) y las métricas **no pasan** al CSV final ni al modelo.
-Lo mismo con `trip_distance_mode`, `speed_mode` (texto con varias modas) y `*_all_counter` (contadores técnicos), excluidas en la Parte 1.
-
-Calculamos la presencia **por bloque** antes de descartar las métricas:'''))
 add(code(r'''TEL_BLOCKS = {"trip": "trip_distance_median", "speed": "speed_median", "hours": "operating_hours_total", "consumption": "fuel_consumption_average"}
 for k, c in TEL_BLOCKS.items():
     df[f"has_{k}_data"] = df[c].notna()
 df["has_telemetry_row"] = df[[f"has_{k}_data" for k in TEL_BLOCKS]].any(axis=1)
 pd.concat({"% con dato, por motor": df.groupby("engine_concept")[[f"has_{k}_data" for k in TEL_BLOCKS] + ["has_telemetry_row"]].mean()}).mul(100).round(1)'''))
-add(md('''Los **eléctricos nunca** tienen consumo de combustible (no consumen combustible), aunque sí envían otros datos. Esto importa para C.7.'''))
+add(md('''Los eléctricos nunca tienen consumo de combustible, aunque sí envían datos de trayectos. Por eso `has_telemetry` no puede depender solo del consumo.'''))
 
-add(md('''### A.10 Resumen: qué se ha hecho con cada columna'''))
+add(md('''### A.10 Resumen por columna'''))
+
 add(code(r'''TRAT = {
  "Unnamed: 0": ("Eliminada", "Índice exportado sin significado (Parte 1)."),
  "client_id": ("Sin nulos · clave", "Clave de agregación; no es feature."),
@@ -396,23 +348,20 @@ resumen_nulos'''))
 
 # =========================================================================== #
 add(md('''---
-# B. Agregación a 1 fila por cliente
+## B. Agregación a una fila por cliente
 
-Como decidió la Parte 1, se segmentan **clientes**, no coches. Cada cliente se resume así:
+Como se decidió en el cuaderno 01, el modelo trabaja con una fila por cliente. Los datos propios del cliente se copian; los del vehículo se toman de su
+**vehículo principal** (el actual matriculado más recientemente) y se añaden totales de su historial: vehículos, visitas a taller, si es B2B y si tiene telemetría.
 
-- **Atributos del cliente** (edad, antigüedad, financiación, consentimientos, zona): son constantes en todas sus filas → se copian.
-- **Vehículo principal**: el **vehículo actual** matriculado más recientemente; si no tiene ninguno actual, el más reciente. Desempate por `vehicle_id`.
-  De él salen las columnas `main_*`.
-- **Agregados del historial**: nº de vehículos distintos, visitas a taller totales, si alguna relación es B2B, si algún vehículo tiene telemetría.
-
-En SQL (el mismo criterio se ejecuta en C.11 para comprobarlo):
 ```sql
-WITH ranked AS (
-  SELECT *, ROW_NUMBER() OVER (PARTITION BY client_id
-            ORDER BY is_current_vehicle DESC, date_of_first_registration DESC, vehicle_id) AS rn
-  FROM filas_limpias)
-SELECT * FROM ranked WHERE rn = 1;          -- vehículo principal de cada cliente
+CREATE VIEW vehiculo_principal AS
+SELECT * FROM (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY client_id
+              ORDER BY is_current_vehicle DESC, date_of_first_registration DESC, vehicle_id) AS rn
+    FROM filas_limpias) t
+WHERE rn = 1;
 ```'''))
+
 add(code(r'''CLIENT_COLS = ["age_range", "gender_derived", "country_code", "months_as_mb_customer", "currently_connected_vehicles",
                "finance_leasing_status", "consent_phone_communication_channel", "consent_epost_communication_channel",
                "consent_post_communication_channel", "purchasing_power_per_inhabitant_eur", "purchasing_power_per_household_eur",
@@ -442,35 +391,23 @@ clientes.head(3).T'''))
 
 # =========================================================================== #
 add(md('''---
-# C. Features derivadas
+## C. Features derivadas
 
-Para cada una: **qué mide**, **columnas de origen**, **cálculo** (fórmula, pandas y SQL) y **por qué es útil**.
-Todas parten de columnas ya tratadas en la sección A, y **ninguna depende de columnas excluidas** en la Parte 1 (ni de la telemetría con nulos).
-
-Al revisar el listado del grupo contra los datos reales encontramos **cuatro ajustes necesarios** y **dos features que no se pueden calcular**.
-Se explican en cada apartado:
-
-| # | Feature | Estado |
-|---|---|---|
-| 1 | `main_vehicle_age_years` | ✅ Como estaba definida |
-| 2 | `tenure_years` | ✅ Como estaba definida |
-| 3 | `itvs_passed_count` | ✅ **Ajustada**: calendario de inspección real de Austria y Suiza |
-| 4 | `warranty_visit_frequency` | ✅ **Ajustada**: se divide por vehículos del historial (como dice la definición; el código de ejemplo usaba vehículos conectados) |
-| 5 | `days_since_last_workshop_visit` | ❌ **No calculable**: el dataset no tiene fechas de visitas al taller |
-| 6 | `post_warranty_retention_flag` | ❌ **No calculable**: solo hay visitas *en garantía* y sin fecha |
-| 7 | `has_telemetry` | ✅ **Ajustada**: cualquier dato de telemetría (solo con el consumo, los eléctricos salían todos sin telemetría) |
-| 8 | `urban_density_classification` | ✅ Calculada como ratio; **se analiza qué mide de verdad** |
-| 9 | `digital_engagement_index` | ✅ Como estaba definida |
-| 10 | `main_is_van` | ✅ **Ajustada**: en los datos las furgonetas son `product_group = 'T'` (no existe `'V'`) |'''))
+Para cada feature indicamos qué mide, de qué columnas sale, su consulta SQL y por qué es útil. Todas se calculan sobre columnas ya tratadas
+y ninguna depende de las columnas eliminadas.'''))
 
 add(md('''### C.1 `main_vehicle_age_years` · Antigüedad del vehículo principal
 
 - **Qué mide:** años desde la primera matriculación del vehículo principal.
-- **Columnas de origen:** `date_of_first_registration` (tratada en A.5) del vehículo principal.
-- **Cálculo:** $\\text{main\\_vehicle\\_age\\_years} = \\dfrac{\\text{2026-10-15} - \\text{date\\_of\\_first\\_registration}}{365{,}25}$
-- **SQL:** `(DATE '2026-10-15' - date_of_first_registration) / 365.25`
-- **Por qué es útil:** detecta la **ventana de renovación** (coches de más de 4-5 años) para ofertas de recompra.
-- No hace falta `fillna` como en el código de ejemplo: la fecha ya no tiene nulos (A.5) y las imputadas quedan marcadas en `main_registration_date_imputed`.'''))
+- **Columnas de origen:** `date_of_first_registration`.
+- **SQL:**
+```sql
+SELECT client_id,
+       (DATE '2026-10-15' - date_of_first_registration) / 365.25 AS main_vehicle_age_years
+FROM vehiculo_principal;
+```
+- **Por qué es útil:** detecta la ventana de renovación del vehículo para planificar ofertas de recompra.'''))
+
 add(code(r'''def f_main_vehicle_age_years(c):
     return (REF_DATE - c["main_date_of_first_registration"]).dt.days / 365.25
 
@@ -479,10 +416,15 @@ clientes.main_vehicle_age_years.describe().round(2)'''))
 
 add(md('''### C.2 `tenure_years` · Antigüedad como cliente
 
-- **Qué mide:** años que lleva el cliente vinculado a la marca (desde su primera conexión a un coche).
-- **Columnas de origen:** `months_as_mb_customer` (4 nulos tratados en A.7).
-- **Cálculo:** $\\text{tenure\\_years} = \\text{months\\_as\\_mb\\_customer} / 12$ · **SQL:** `months_as_mb_customer / 12.0`
-- **Por qué es útil:** mide la **lealtad** y el momento del ciclo de vida del cliente (recién llegado vs. veterano).'''))
+- **Qué mide:** años que lleva el cliente vinculado a Mercedes-Benz.
+- **Columnas de origen:** `months_as_mb_customer`.
+- **SQL:**
+```sql
+SELECT client_id, months_as_mb_customer / 12.0 AS tenure_years
+FROM vehiculo_principal;
+```
+- **Por qué es útil:** mide la lealtad y el momento del ciclo de vida del cliente.'''))
+
 add(code(r'''def f_tenure_years(c):
     return c["months_as_mb_customer"] / 12.0
 
@@ -490,34 +432,28 @@ clientes["tenure_years"] = f_tenure_years(clientes)
 display(clientes.tenure_years.describe().round(2).to_frame().T)
 m = raw.drop_duplicates("client_id").months_as_mb_customer.value_counts().sort_index()
 print("Clientes por meses como cliente (30-42):", m.loc[30:42].astype(int).to_dict())'''))
-add(md('''**Anomalía detectada:** 21.179 clientes (≈12 %) tienen **exactamente 36 meses**, frente a ~2.200 en los meses vecinos. No es un nulo,
-pero parece un **valor por defecto** del sistema de origen (p. ej. clientes cargados en una migración hace 3 años). No lo modificamos porque no
-sabemos su valor real, pero conviene **confirmarlo con Mercedes-Benz**: si es un valor por defecto, esos clientes formarían una acumulación
-artificial en `tenure_years`.'''))
+add(md('''21.179 clientes tienen exactamente 36 meses, frente a unos 2.200 en los meses vecinos. No es un nulo, pero parece un valor por defecto del sistema
+de origen. No lo modificamos; conviene confirmarlo con Mercedes-Benz.'''))
 
-add(md('''### C.3 `itvs_passed_count` · Inspecciones técnicas obligatorias superadas
+add(md('''### C.3 `itvs_passed_count` · Inspecciones técnicas superadas
 
-- **Qué mide:** cuántas inspecciones periódicas obligatorias ha tenido que pasar el vehículo principal según su antigüedad.
-- **Columnas de origen:** `main_vehicle_age_years` (C.1) y `country_code`.
-- **Ajuste respecto al listado:** la fórmula propuesta (primera a los 4 años y luego cada 2) es el calendario de la **ITV española**.
-  Nuestros clientes son de **Austria y Suiza**, que tienen calendarios distintos, así que aplicamos el de cada país:
-
-| País | Inspección | Calendario para turismos | Fórmula (edad = *a* años) |
-|---|---|---|---|
-| Austria | *§57a-Begutachtung* ("Pickerl") | a los 3 años, a los 5 y después cada año ("3-2-1") | 0 si *a* < 3 · 1 si 3 ≤ *a* < 5 · 2 + ⌊*a* − 5⌋ si *a* ≥ 5 |
-| Suiza | *MFK / Motorfahrzeugkontrolle* | a los 5 años, a los 8 y después cada 2 años ("5-3-2") | 0 si *a* < 5 · 1 si 5 ≤ *a* < 8 · 2 + ⌊(*a* − 8)/2⌋ si *a* ≥ 8 |
-| *(listado original)* | *ITV España* | *4 años y después cada 2* | *máx(0, ⌊(a − 4)/2⌋ + 1)* |
-
-> Calendarios generales para turismos. Conviene que el grupo los confirme con la normativa vigente si se usan en la presentación.
-
+- **Qué mide:** cuántas inspecciones técnicas obligatorias ha tenido que pasar el vehículo principal según su antigüedad.
+- **Columnas de origen:** `main_vehicle_age_years` y `country_code`.
+- Usamos el calendario de cada país: en Austria la inspección se pasa a los 3 años, a los 5 y después cada año; en Suiza, a los 5 años,
+  a los 8 y después cada 2 años (calendarios generales de turismos).
 - **SQL:**
 ```sql
-CASE WHEN country_code = 'AT' THEN CASE WHEN age < 3 THEN 0 WHEN age < 5 THEN 1 ELSE 2 + FLOOR(age - 5) END
-     ELSE                          CASE WHEN age < 5 THEN 0 WHEN age < 8 THEN 1 ELSE 2 + FLOOR((age - 8) / 2) END
-END
+SELECT client_id,
+       CASE WHEN country_code = 'AT'
+            THEN CASE WHEN age < 3 THEN 0 WHEN age < 5 THEN 1 ELSE 2 + FLOOR(age - 5) END
+            ELSE CASE WHEN age < 5 THEN 0 WHEN age < 8 THEN 1 ELSE 2 + FLOOR((age - 8) / 2) END
+       END AS itvs_passed_count
+FROM (SELECT client_id, country_code,
+             (DATE '2026-10-15' - date_of_first_registration) / 365.25 AS age
+      FROM vehiculo_principal) v;
 ```
-- **Por qué es útil:** separa los coches nuevos de los **maduros que ya pasan por posventa fuera de garantía**, y lo hace con el calendario
-  que realmente vive el cliente (un austriaco empieza a pasar inspecciones 2 años antes que un suizo).'''))
+- **Por qué es útil:** separa los coches nuevos de los maduros que ya pasan por posventa fuera de garantía.'''))
+
 add(code(r'''def f_itvs_passed_count(c):
     a = c["main_vehicle_age_years"].to_numpy()
     at = np.where(a < 3, 0, np.where(a < 5, 1, 2 + np.floor(a - 5)))
@@ -537,13 +473,18 @@ print(f"Clientes en los que el calendario del país y la fórmula española difi
 
 add(md('''### C.4 `warranty_visit_frequency` · Frecuencia de visitas en garantía
 
-- **Qué mide:** cuántas visitas al taller oficial en garantía acumula el cliente **por cada vehículo** que ha tenido.
-- **Columnas de origen:** `workshop_visits_warranty_goodwill` (por vehículo) y `vehicle_id` (para contar vehículos distintos).
-- **Cálculo:** $\\text{warranty\\_visit\\_frequency} = \\dfrac{\\sum \\text{workshop\\_visits\\_warranty\\_goodwill}}{\\text{n\\_vehicles\\_history}}$
-- **SQL:** `SUM(workshop_visits_warranty_goodwill) * 1.0 / COUNT(DISTINCT vehicle_id)` agrupando por `client_id`.
-- **Ajuste:** el código de ejemplo dividía por `currently_connected_vehicles`. Pero las visitas se acumulan en **todos** los vehículos del historial
-  (también los que ya no tiene), y además hay clientes con 0 vehículos conectados. Seguimos la definición escrita: **vehículos del historial**.
-- **Por qué es útil:** identifica clientes con mucha demanda de posventa (o incidencias recurrentes) → **planes de mantenimiento**.'''))
+- **Qué mide:** visitas al taller oficial en garantía por cada vehículo que ha tenido el cliente.
+- **Columnas de origen:** `workshop_visits_warranty_goodwill` y `vehicle_id`.
+- Dividimos por todos los vehículos del historial, no solo los conectados, porque las visitas se acumulan también en los coches que ya no tiene.
+- **SQL:**
+```sql
+SELECT client_id,
+       SUM(workshop_visits_warranty_goodwill) * 1.0 / COUNT(DISTINCT vehicle_id) AS warranty_visit_frequency
+FROM filas_limpias
+GROUP BY client_id;
+```
+- **Por qué es útil:** identifica a los clientes que más usan la posventa, candidatos a planes de mantenimiento.'''))
+
 add(code(r'''def f_warranty_visit_frequency(c):
     return c["workshop_visits_total"] / c["n_vehicles_history"]
 
@@ -553,47 +494,22 @@ print(f"Clientes con 0 vehículos conectados: {(clientes.currently_connected_veh
       f"(con el código de ejemplo se les dividiría por 1 aunque hayan tenido varios coches)")
 clientes.warranty_visit_frequency.describe().round(2)'''))
 
-add(md('''### C.5 `days_since_last_workshop_visit` · ❌ No calculable
+add(md('''### C.5 `has_telemetry` · Cliente conectado
 
-- **Qué mediría:** días desde la última visita al taller.
-- **Columnas que haría falta:** la **fecha** de cada visita al taller.
-- **Problema:** el dataset **no tiene ninguna fecha de visita**. La única columna de taller es `workshop_visits_warranty_goodwill`, que es un
-  **contador** sin fecha. La única fecha del dataset es la de matriculación, que no dice nada de cuándo fue el cliente al taller.
-- **Decisión:** **no se crea**. Cualquier valor sería inventado. Si Mercedes-Benz aportara el histórico de órdenes de taller, el cálculo sería:
-```sql
-SELECT client_id, DATE '2026-10-15' - MAX(visit_date) AS days_since_last_workshop_visit
-FROM ordenes_taller GROUP BY client_id;     -- tabla que NO tenemos
-```'''))
-add(code(r'''print("Columnas con fechas en el dataset:", [c for c in raw.columns if "date" in c])
-print("Columnas de taller:", [c for c in raw.columns if "workshop" in c],
-      "-> tipo:", raw.workshop_visits_warranty_goodwill.dtype, "(contador, sin fecha)")'''))
-
-add(md('''### C.6 `post_warranty_retention_flag` · ❌ No calculable
-
-- **Qué mediría:** si el cliente **sigue yendo al taller oficial después** de que acabe la garantía (coche de más de 3 años + visita reciente).
-- **Problema:** necesita visitas **posteriores a la garantía** y **recientes**. Pero `workshop_visits_warranty_goodwill` cuenta **solo visitas en garantía**
-  y sin fecha: por definición no puede reflejar visitas fuera de garantía, ni si son recientes.
-- **Por qué no usamos una aproximación:** "coche > 3 años y alguna visita en garantía" mediría que el cliente **usó el taller durante la garantía**,
-  no que **siga** yendo después. Llamarlo "retención post-garantía" sería engañoso para marketing.
-- **Decisión:** **no se crea**. Con el histórico de taller sería:
+- **Qué mide:** si algún vehículo del cliente envía datos de conducción.
+- **Columnas de origen:** `trip_distance_median`, `speed_median`, `operating_hours_total` y `fuel_consumption_average` (solo si tienen dato o no).
+- Miramos cualquier bloque de telemetría y no solo el consumo, porque los eléctricos no tienen consumo de combustible.
+- **SQL:**
 ```sql
 SELECT client_id,
-       MAX(CASE WHEN vehicle_age_at_visit > 3 AND visit_date >= DATE '2026-10-15' - INTERVAL 12 MONTH THEN 1 ELSE 0 END)
-         AS post_warranty_retention_flag
-FROM ordenes_taller GROUP BY client_id;     -- tabla que NO tenemos
+       MAX(CASE WHEN trip_distance_median IS NOT NULL OR speed_median IS NOT NULL
+                 OR operating_hours_total IS NOT NULL OR fuel_consumption_average IS NOT NULL
+                THEN 1 ELSE 0 END) AS has_telemetry
+FROM filas_limpias
+GROUP BY client_id;
 ```
-- Su información parcial ya está cubierta por `itvs_passed_count` (madurez del coche) y `warranty_visit_frequency` (uso del taller).'''))
+- **Por qué es útil:** convierte el 60 % de nulos de la telemetría en información (cliente conectado frente a tradicional) sin imputar nada.'''))
 
-add(md('''### C.7 `has_telemetry` · Cliente conectado
-
-- **Qué mide:** si **algún** vehículo del cliente envía datos de conducción.
-- **Columnas de origen:** `trip_distance_median`, `speed_median`, `operating_hours_total`, `fuel_consumption_average` (solo si son nulas o no).
-- **Cálculo:** 1 si alguno de los bloques tiene dato en alguno de sus vehículos; si no, 0.
-- **SQL:** `MAX(CASE WHEN trip_distance_median IS NOT NULL OR speed_median IS NOT NULL OR operating_hours_total IS NOT NULL OR fuel_consumption_average IS NOT NULL THEN 1 ELSE 0 END)` por `client_id`.
-- **Ajuste:** la propuesta usaba **solo** `fuel_consumption_average`. Pero un eléctrico **no consume combustible** y nunca tiene ese dato, aunque sí
-  envíe el resto. A nivel de coche, **ningún eléctrico** tiene ese dato; a nivel de cliente, con la definición original solo saldría "conectado" el ~14 % de
-  los clientes con eléctrico principal (gracias a otros coches suyos), frente al ~60 % real: se perdería justo el perfil más digital.
-- **Por qué es útil:** convierte el 60 % de nulos de la telemetría en información útil (cliente conectado vs. tradicional) sin imputar nada.'''))
 add(code(r'''def f_has_telemetry(c):
     return c["has_telemetry"].astype(int)       # agregado en B a partir de has_telemetry_row (A.9)
 
@@ -606,13 +522,17 @@ ax.set_ylabel("% de clientes con telemetría"); ax.set_title("has_telemetry seg�
 plt.savefig(FIG_DIR / "02b_has_telemetry.png"); plt.show()
 t.round(1)'''))
 
-add(md('''### C.8 `urban_density_classification` · Personas por hogar de la zona
+add(md('''### C.6 `urban_density_classification` · Personas por hogar de la zona
 
-- **Qué mide (según el listado):** concentración urbana de la zona del cliente.
-- **Columnas de origen:** `population` y `number_of_households` (tratadas en A.8).
-- **Cálculo:** $\\text{urban\\_density\\_classification} = \\dfrac{\\text{population}}{\\text{number\\_of\\_households}}$ · **SQL:** `population / NULLIF(number_of_households, 0)`
-- Se deja como **ratio numérico** (una de las dos opciones del listado), porque para clasificar en tramos *Rural / Urbano / Metropolitano*
-  primero hay que comprobar que el ratio realmente mide urbanidad. Lo comprobamos:'''))
+- **Qué mide:** relación entre población y hogares del código postal del cliente.
+- **Columnas de origen:** `population` y `number_of_households`.
+- **SQL:**
+```sql
+SELECT client_id, population / NULLIF(number_of_households, 0) AS urban_density_classification
+FROM vehiculo_principal;
+```
+- Antes de usarla comprobamos si realmente distingue zonas urbanas de rurales.'''))
+
 add(code(r'''def f_urban_density_classification(c):
     return c["population"] / c["number_of_households"].replace(0, np.nan)
 
@@ -623,21 +543,22 @@ zonas = zonas.assign(ratio=zonas.population / zonas.number_of_households,
 print(f"Ratio por zona: mediana {zonas.ratio.median():.2f} · coef. de variación {zonas.ratio.std() / zonas.ratio.mean():.2f}")
 print(f"Correlación (Spearman) entre el ratio y la población de la zona: {zonas[['ratio', 'population']].corr('spearman').iloc[0, 1]:.3f}")
 zonas.groupby("tamano_zona", observed=True).ratio.median().round(2).to_frame("personas por hogar (mediana)")'''))
-add(md('''**Resultado:** el ratio es en realidad el **tamaño medio del hogar** (≈ 2,3 personas), varía muy poco entre zonas y **no tiene relación
-con el tamaño de la zona** (correlación ≈ 0): las zonas más pobladas no tienen hogares más pequeños. Para medir densidad haría falta la
-**superficie** del código postal, que no tenemos.
+add(md('''El ratio equivale al tamaño medio del hogar (unas 2,3 personas), varía muy poco y no tiene relación con el tamaño de la zona.
+Lo conservamos en el CSV, pero no lo usamos en el modelo.'''))
 
-**Decisión:** se calcula y se guarda en el CSV con el nombre acordado, documentando que mide *personas por hogar*, pero **no entra en el modelo**
-(no aporta separación y su nombre sugiere algo que no mide). Tampoco se clasifica en tramos con etiquetas urbanas que no podríamos justificar.'''))
-
-add(md('''### C.9 `digital_engagement_index` · Índice de conectividad multicanal
+add(md('''### C.7 `digital_engagement_index` · Índice de conectividad multicanal
 
 - **Qué mide:** afinidad del cliente con los vehículos conectados y los canales digitales.
 - **Columnas de origen:** `currently_connected_vehicles` y `consent_epost_communication_channel`.
-- **Cálculo:** $\\text{digital\\_engagement\\_index} = \\text{currently\\_connected\\_vehicles} + \\mathbb{1}(\\text{acepta e-post})$
-- **SQL:** `currently_connected_vehicles + CASE WHEN consent_epost_communication_channel THEN 1 ELSE 0 END`
-- **Por qué es útil:** prioriza a quién dirigir comunicaciones digitales y servicios de la app.
-- **A tener en cuenta:** el 98 % acepta e-post, así que en la práctica el índice es casi "vehículos conectados + 1"; la diferencia la marca el 2 % que no lo acepta.'''))
+- **SQL:**
+```sql
+SELECT client_id,
+       currently_connected_vehicles
+         + CASE WHEN consent_epost_communication_channel THEN 1 ELSE 0 END AS digital_engagement_index
+FROM vehiculo_principal;
+```
+- **Por qué es útil:** prioriza a quién dirigir comunicaciones digitales y servicios de la app. Como el 98 % acepta e-post, el índice depende sobre todo de los vehículos conectados.'''))
+
 add(code(r'''def f_digital_engagement_index(c):
     return c["currently_connected_vehicles"] + c["consent_epost_communication_channel"].astype(int)
 
@@ -645,14 +566,17 @@ clientes["digital_engagement_index"] = f_digital_engagement_index(clientes)
 print(f"Aceptan e-post: {clientes.consent_epost_communication_channel.mean():.1%}")
 clientes.digital_engagement_index.clip(upper=6).value_counts().sort_index().rename(index={6: "6+"}).to_frame("clientes")'''))
 
-add(md('''### C.10 `main_is_van` · Vehículo comercial / furgoneta
+add(md('''### C.8 `main_is_van` · Vehículo comercial
 
-- **Qué mide:** si el vehículo principal es un comercial ligero (furgoneta o pick-up).
-- **Columnas de origen:** `product_group` del vehículo principal (comprobado contra `model_class`).
-- **Cálculo:** 1 si `product_group = 'T'`, si no 0 · **SQL:** `CASE WHEN product_group = 'T' THEN 1 ELSE 0 END`
-- **Ajuste:** el código de ejemplo usaba `product_group == 'V'`, pero **ese valor no existe** en los datos (hay `P`, `T`, `G`, `F`):
-  daría 0 a todos los clientes. La tabla de abajo muestra que `T` agrupa exactamente las clases comerciales (Sprinter, Vito/V-Class, Citan, X-Class).
-- **Por qué es útil:** separa el uso profesional / familiar de furgoneta del turismo particular.'''))
+- **Qué mide:** si el vehículo principal es una furgoneta o un comercial ligero.
+- **Columnas de origen:** `product_group`. En los datos, el grupo `T` reúne exactamente las clases comerciales (Sprinter, Vito / V-Class, Citan y X-Class).
+- **SQL:**
+```sql
+SELECT client_id, CASE WHEN product_group = 'T' THEN 1 ELSE 0 END AS main_is_van
+FROM vehiculo_principal;
+```
+- **Por qué es útil:** separa el uso profesional o familiar de furgoneta del turismo particular.'''))
+
 add(code(r'''def f_main_is_van(c):
     return c["main_product_group"].eq("T").astype(int)
 
@@ -662,9 +586,10 @@ print("Con la condición del código de ejemplo (== 'V'):", int((clientes.main_p
 display(pd.crosstab(df.model_class, df.product_group).loc[lambda t: t["T"] > 0, ["T"]])
 print(f"main_is_van = 1: {clientes.main_is_van.mean():.1%} de los clientes")'''))
 
-add(md('''### C.11 Comprobación: el SQL da exactamente lo mismo que pandas
+add(md('''### C.9 Comprobación del SQL
 
-Ejecutamos con **DuckDB** una única consulta SQL que calcula todas las features derivadas desde la tabla de filas limpias, y la comparamos con lo calculado en pandas.'''))
+Ejecutamos todas las consultas juntas con DuckDB sobre las filas limpias y comprobamos que dan exactamente lo mismo que el cálculo en pandas.'''))
+
 add(code(r'''SQL_FEATURES = """
 WITH ranked AS (
     SELECT *, ROW_NUMBER() OVER (PARTITION BY client_id
@@ -705,7 +630,8 @@ check = pd.DataFrame({f: {"máx. diferencia SQL vs pandas": float(np.abs(sql[f].
 assert (check.iloc[:, 0] < 1e-9).all()
 check'''))
 
-add(md('''### C.12 Distribución de las features derivadas'''))
+add(md('''### C.10 Distribución de las features derivadas'''))
+
 add(code(r'''fig, axes = plt.subplots(2, 3, figsize=(15, 8))
 ax = axes[0, 0]
 s = clientes.main_vehicle_age_years
@@ -737,10 +663,10 @@ print(f"has_telemetry = 1: {clientes.has_telemetry.mean():.1%} · main_is_van = 
 
 # =========================================================================== #
 add(md('''---
-# D. Selección justificada de features para el modelo
+## D. Selección de features para el modelo
 
-No se usan todas las columnas: se eligen las que **diferencian clientes** de forma útil para marketing, tienen buena calidad y **no son redundantes**.
-Comprobamos la redundancia con la correlación entre candidatas:'''))
+Elegimos las variables que diferencian a los clientes de forma útil para marketing y evitamos las redundantes, comprobándolo con la correlación entre candidatas.'''))
+
 add(code(r'''cand = clientes.assign(age_ord=clientes.age_range.map(mf.AGE_ORDER),
                        main_segment_tier=clientes.main_model_class.map(mf.SEGMENT_TIER))
 cand_cols = ["main_vehicle_age_years", "itvs_passed_count", "tenure_years", "warranty_visit_frequency",
@@ -758,61 +684,50 @@ fig.colorbar(im, ax=ax, shrink=0.8); ax.set_title("Correlación de Spearman entr
 fig.savefig(FIG_DIR / "02b_correlaciones_candidatas.png"); plt.show()
 print(f"ρ(main_vehicle_age_years, itvs_passed_count) = {c.loc['main_vehicle_age_years', 'itvs_passed_count']:.2f}")
 print(f"ρ(digital_engagement_index, currently_connected_vehicles) = {c.loc['digital_engagement_index', 'currently_connected_vehicles']:.2f}")'''))
-add(md('''### Features que entran en el modelo
+add(md('''Variables que entran en el modelo:
 
-| Feature | Tipo | Origen | Justificación |
-|---|---|---|---|
-| `main_vehicle_age_years` | numérica | derivada C.1 | Ventana de renovación → **ofertas de vehículo** |
-| `tenure_years` | numérica | derivada C.2 | Lealtad y ciclo de vida → **fidelización** |
-| `warranty_visit_frequency` | numérica | derivada C.4 | Uso de posventa → **planes de mantenimiento** |
-| `digital_engagement_index` | numérica | derivada C.9 | Vehículos conectados + canal digital → **comunicaciones dirigidas** |
-| `purchasing_power_per_household_eur` | numérica | base | Capacidad de compra de la zona → nivel de oferta |
-| `age_range` | ordinal | base | Etapa vital; se codifica 0-5 respetando el orden |
-| `main_model_class` → gama 1-4 | ordinal | base | Nivel de gama del vehículo (compacto … lujo) → upsell |
-| `main_is_van` | binaria | derivada C.10 | Uso profesional / furgoneta |
-| `has_telemetry` | binaria | derivada C.7 | Cliente conectado vs. tradicional |
-| `finance_leasing_status` | nominal (4) | base | Relación con Mercedes-Benz Financial → momento de renovar el leasing |
-| `main_engine_concept` | nominal (5, con `UNKNOWN`) | base tratada | Afinidad eléctrica / híbrida |
+| Feature | Tipo | Para qué sirve |
+|---|---|---|
+| `main_vehicle_age_years` | numérica | Ventana de renovación (ofertas de vehículo) |
+| `tenure_years` | numérica | Lealtad (fidelización) |
+| `warranty_visit_frequency` | numérica | Uso de posventa (planes de mantenimiento) |
+| `digital_engagement_index` | numérica | Conectividad (comunicaciones dirigidas) |
+| `purchasing_power_per_household_eur` | numérica | Capacidad de compra de la zona |
+| `age_range` | ordinal | Etapa vital |
+| `main_model_class` → gama 1-4 | ordinal | Nivel de gama del vehículo |
+| `main_is_van` | binaria | Uso profesional |
+| `has_telemetry` | binaria | Cliente conectado |
+| `finance_leasing_status` | nominal | Relación con la financiera |
+| `main_engine_concept` | nominal | Afinidad eléctrica |
 
-### Features que **no** entran (y por qué)
+Variables que no entran, además de las ya descartadas en el cuaderno 01:
 
 | Feature | Motivo |
 |---|---|
-| `itvs_passed_count` | Es una función escalonada de la antigüedad (ρ = 0,86 con `main_vehicle_age_years`): meterla duplicaría el peso de la edad del coche. Se guarda en el CSV para perfilar. |
+| `itvs_passed_count` | Depende de la antigüedad del coche (ρ = 0,86): duplicaría su peso. Se guarda para perfilar. |
 | `currently_connected_vehicles` | Ya está dentro de `digital_engagement_index` (ρ = 0,96). |
-| `urban_density_classification` | Mide personas por hogar, casi constante y sin relación con la urbanidad (C.8). |
-| `country_code` | Partiría el modelo en CH/AT y taparía comportamientos comunes; su efecto económico ya está en el poder adquisitivo. Se usa para perfilar. |
-| `gender_derived` | Inferido, con nulos no aleatorios: riesgo de sesgo (Parte 1). |
-| Telemetría (métricas) | 60 % de falta estructural; sustituida por `has_telemetry` (Parte 1). |
-| Identificadores y alta cardinalidad (`client_id`, `vehicle_id`, `zipcode`, `model_series`, `vehicle_type`) | Sin valor analítico (Parte 1). |
-| Consentimientos teléfono / correo postal | Los aceptan ~85 %: casi no separan clientes. Se conservan en el CSV para elegir canal. |
-| Resto de variables de zona | Redundantes con el poder adquisitivo por hogar o miden el tamaño de la zona, no del cliente. |'''))
+| `urban_density_classification` | Casi constante y no distingue zonas urbanas (C.6). |
+| `country_code` | Partiría el modelo por país; su efecto económico ya está en el poder adquisitivo. Se usa para perfilar. |
+| Consentimientos de teléfono y correo postal | Los acepta la gran mayoría, así que apenas separan clientes. |'''))
 
-# =========================================================================== #
 add(md('''---
-# E. Pipeline de transformación
+## E. Pipeline de transformación
 
-Todo lo anterior se encapsula en un único `sklearn.Pipeline`. Cada paso es un transformador con `fit` (aprende de los datos) y `transform` (aplica):
+Todo el proceso se encapsula en un único `Pipeline` de scikit-learn con cuatro pasos: tratamiento de nulos (A), agregación a cliente (B),
+features derivadas (C) y codificación y escalado de las variables seleccionadas (D):
 
-1. **`TratamientoNulos`**: en `fit` aprende las tablas de consulta (motor, clase, combustible) y las medianas (serie, país, grupo); en `transform` las aplica (sección A).
-2. **`AgregacionClientes`**: pasa a 1 fila por cliente (sección B).
-3. **`FeaturesDerivadas`**: calcula las 8 features derivadas (sección C).
-4. **`ColumnTransformer`**: codificación y escalado de las features seleccionadas (sección D):
+| Grupo | Columnas | Tratamiento |
+|---|---|---|
+| Numéricas con cola larga | `warranty_visit_frequency`, `digital_engagement_index`, `purchasing_power_per_household_eur` | mediana → `log1p` → `RobustScaler` |
+| Numéricas | `main_vehicle_age_years`, `tenure_years` | mediana → `RobustScaler` |
+| Ordinal edad | `age_range` | `OrdinalEncoder` (<25 … 65+ = 0 … 5) → `RobustScaler` |
+| Ordinal gama | `main_model_class` | clase → gama 1-4 → `RobustScaler` |
+| Binarias | `main_is_van`, `has_telemetry` | se dejan en 0/1 |
+| Nominales | `finance_leasing_status`, `main_engine_concept` | `OneHotEncoder` |
 
-| Grupo | Columnas | Tratamiento | Por qué |
-|---|---|---|---|
-| Numéricas con cola larga | `warranty_visit_frequency`, `digital_engagement_index`, `purchasing_power_per_household_eur` | mediana → `log1p` → `RobustScaler` | El log comprime la cola (clientes con 20 coches o 40 visitas) |
-| Numéricas | `main_vehicle_age_years`, `tenure_years` | mediana → `RobustScaler` | — |
-| Ordinal edad | `age_range` | `OrdinalEncoder` (<25 … 65+ = 0 … 5) → `RobustScaler` | Respeta el orden natural en 1 columna |
-| Ordinal gama | `main_model_class` | clase → gama 1-4 → mediana (para `UNKNOWN`) → `RobustScaler` | 42 clases resumidas en un nivel de gama |
-| Binarias | `main_is_van`, `has_telemetry` | se dejan en 0/1 | Escalar una binaria rara la haría dominar la distancia |
-| Nominales | `finance_leasing_status`, `main_engine_concept` | `OneHotEncoder` | Sin orden natural; `UNKNOWN` es una categoría más |
+Usamos `RobustScaler` porque, como se vio en el cuaderno 01, hay valores extremos: escala con la mediana y el rango intercuartílico,
+así que los outliers no deforman la escala del resto. El logaritmo comprime las colas largas (clientes con muchos coches o muchas visitas).'''))
 
-**¿Por qué `RobustScaler`?** La Parte 1 detectó valores extremos y asimetrías. `RobustScaler` centra en la **mediana** y escala por el
-**rango intercuartílico**, así que los outliers no deforman la escala del resto de clientes (con `StandardScaler`, media y desviación sí se ven arrastradas).
-
-La imputación por mediana dentro del pipeline es una **red de seguridad**: tras la sección A ya no queda ningún nulo, pero si el pipeline
-se aplica a datos nuevos (p. ej. una clase de coche que no está en el mapa de gamas) los rellenará en vez de fallar.'''))
 add(code(r'''class TratamientoNulos(BaseEstimator, TransformerMixin):
     """Sección A: trata los nulos de cada columna según su naturaleza (fila cliente-vehículo)."""
 
@@ -935,8 +850,8 @@ assert all(iguales.values()), [k for k, v in iguales.items() if not v]'''))
 add(code(r'''resumen_X = pd.DataFrame({"mediana": X_df.median(), "p1": X_df.quantile(.01), "p99": X_df.quantile(.99),
                           "mín": X_df.min(), "máx": X_df.max()}).round(2)
 resumen_X'''))
-add(md('''Tras el escalado, las numéricas quedan centradas en 0 (la mediana) con la mayoría de los clientes en un rango de pocas unidades,
-comparable al 0/1 de las binarias y one-hot: ninguna variable domina la distancia por su escala original.'''))
+add(md('''Tras el escalado, las numéricas quedan centradas en 0 y en un rango comparable al 0/1 de las binarias: ninguna domina la distancia por su escala original.'''))
+
 add(code(r'''fig, axes = plt.subplots(1, 2, figsize=(15, 4.5))
 nums = LOG_FEATS + NUM_FEATS
 antes = clientes_pipe[nums]
@@ -951,11 +866,11 @@ fig.tight_layout(); fig.savefig(FIG_DIR / "02b_escalado.png"); plt.show()'''))
 
 # =========================================================================== #
 add(md('''---
-# F. Salidas: CSV de clientes y matriz del modelo
+## F. CSV final de clientes
 
-El CSV final contiene, por cliente: sus atributos con los nulos tratados, los del vehículo principal, los agregados del historial,
-las **8 features derivadas** y los **indicadores** de imputación. Las columnas eliminadas en A.9 (telemetría, modas, contadores) y los
-identificadores excluidos en la Parte 1 (`vehicle_id`, `zipcode`, `model_series`) no se incluyen.'''))
+Guardamos una fila por cliente con los nulos tratados, los datos de su vehículo principal, los totales de su historial, las features derivadas
+y los indicadores de imputación. También guardamos la matriz que recibirá K-Means.'''))
+
 add(code(r'''out = clientes_pipe.reset_index()
 out["main_date_of_first_registration"] = out.main_date_of_first_registration.dt.strftime("%Y-%m-%d")
 assert out.isna().sum().sum() == 0, out.isna().sum()[lambda s: s > 0]
@@ -985,30 +900,12 @@ features_modelo.to_csv(ROOT / "reports" / "fe2_features_modelo.csv", index=False
 features_modelo'''))
 add(md('''## Resumen
 
-**Tratamiento de nulos (A):** cada columna según su naturaleza. Lo deducible se deduce con reglas **validadas** (motor, combustible, clase);
-lo no deducible queda `UNKNOWN` (**nunca combustión por defecto**); lo numérico de contexto se imputa con la mediana de un grupo comparable y
-se marca; la telemetría, con falta estructural, se convierte en `has_telemetry` y sus métricas se eliminan.
-
-**Features derivadas (C):** 8 de las 10 acordadas, con su cálculo en pandas y en SQL (comprobados iguales con DuckDB):
-
-| Feature | Columnas de origen | Ajuste |
-|---|---|---|
-| `main_vehicle_age_years` | `date_of_first_registration` | — |
-| `tenure_years` | `months_as_mb_customer` | — |
-| `itvs_passed_count` | antigüedad + `country_code` | Calendario de Austria (3-2-1) y Suiza (5-3-2), no el español |
-| `warranty_visit_frequency` | `workshop_visits_warranty_goodwill`, `vehicle_id` | Dividido por vehículos del historial |
-| `has_telemetry` | bloques de telemetría | Cualquier bloque (no solo consumo, que excluía a los eléctricos) |
-| `urban_density_classification` | `population`, `number_of_households` | Mide personas por hogar; fuera del modelo |
-| `digital_engagement_index` | `currently_connected_vehicles`, `consent_epost_communication_channel` | — |
-| `main_is_van` | `product_group` | `'T'` en lugar de `'V'` (que no existe) |
-| ~~`days_since_last_workshop_visit`~~ | — | **No calculable**: no hay fechas de taller |
-| ~~`post_warranty_retention_flag`~~ | — | **No calculable**: solo hay visitas en garantía y sin fecha |
-
-**Selección (D) y pipeline (E):** 11 features (6 derivadas + 5 base) → 18 columnas tras la codificación, en un único `Pipeline` reproducible.
-
-**Salidas (F):** `data/clientes_features.csv` (1 fila por cliente, 0 nulos) y `data/X_model_fe2.pkl` (matriz lista para K-Means).
-Ninguna se sube al repositorio (datos reales de clientes).
-'''))
+- **Nulos:** los valores deducibles (motor, combustible, clase) se deducen con reglas validadas; lo que no se puede deducir queda como `UNKNOWN`;
+  las numéricas de contexto se imputan con la mediana de un grupo comparable y quedan marcadas; la telemetría se resume en `has_telemetry`.
+- **Features derivadas:** `main_vehicle_age_years`, `tenure_years`, `itvs_passed_count`, `warranty_visit_frequency`, `has_telemetry`,
+  `urban_density_classification`, `digital_engagement_index` y `main_is_van`, con su SQL comprobado.
+- **Modelo:** 11 features que, tras la codificación, forman una matriz de 18 columnas.
+- **Salidas:** `data/clientes_features.csv` (173.456 clientes, sin nulos) y `data/X_model_fe2.pkl`.'''))
 
 if __name__ == "__main__":
     save("02_feature_engineering_2.ipynb", cells)
