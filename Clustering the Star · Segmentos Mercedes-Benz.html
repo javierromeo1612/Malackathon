@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Clustering the Star · Segmentos de clientes Mercedes-Benz</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&family=Inter:wght@400;500;600&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#0a0b0d;--card:#14161a;--line:#262a30;--ink:#eceff2;--mute:#9aa3ad;--acc:#00adef;--chip:#1b1e23}
+:root:not([data-theme="dark"]){}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#f3f4f6;--card:#fff;--line:#d9dde2;--ink:#14161a;--mute:#5d6670;--chip:#eceff2}}
+:root[data-theme="dark"]{--bg:#0a0b0d;--card:#14161a;--line:#262a30;--ink:#eceff2;--mute:#9aa3ad;--chip:#1b1e23}
+*,*:before,*:after{box-sizing:inherit}
+html{scroll-behavior:smooth;scroll-padding-top:calc(70px + env(safe-area-inset-top,0px))}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 Inter,system-ui,sans-serif}
+h1,h2,h3,.jost{font-family:Jost,'Helvetica Neue',Arial,sans-serif;font-weight:400;letter-spacing:.04em}
+nav{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;display:flex;align-items:center;gap:22px;padding:12px 24px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);overflow-x:auto;white-space:nowrap}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+nav a{color:var(--mute);text-decoration:none;font:500 12px Jost;letter-spacing:.18em;text-transform:uppercase}
+nav a:hover{color:var(--acc)}
+.brand{display:flex;align-items:center;gap:10px;color:var(--ink)!important;margin-right:auto}
+.brand svg{width:30px;height:30px}
+section{max-width:1120px;margin:0 auto;padding:64px 24px 8px}
+.hero{text-align:center;padding-top:72px}
+.hero svg{width:92px;height:92px}
+.eyebrow{font:500 12px Jost;letter-spacing:.32em;text-transform:uppercase;color:var(--acc)}
+h1{font-size:clamp(34px,6vw,64px);font-weight:300;text-transform:uppercase;letter-spacing:.14em;margin:12px 0}
+.hero p{max-width:640px;margin:0 auto;color:var(--mute)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:36px}
+.kpi{border:1px solid var(--line);background:var(--card);padding:16px;border-radius:4px}
+.kpi b{display:block;font:300 34px Jost;letter-spacing:.04em}.kpi span{color:var(--mute);font-size:12px;text-transform:uppercase;letter-spacing:.12em}
+h2{font-size:26px;text-transform:uppercase;letter-spacing:.16em;margin:0 0 6px}
+.sub{color:var(--mute);margin:0 0 24px;max-width:720px}
+.rule{height:2px;width:48px;background:linear-gradient(90deg,var(--acc),transparent);margin:10px 0 20px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.seg{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--c);padding:18px;border-radius:4px;cursor:pointer;transition:.2s}
+.seg:hover,.seg.on{transform:translateY(-3px);border-color:var(--c)}
+.seg small{color:var(--mute);letter-spacing:.14em;text-transform:uppercase;font:500 11px Jost}
+.seg h3{margin:4px 0 6px;font-size:19px}.seg p{margin:0;color:var(--mute);font-size:13.5px}
+.bar{height:5px;background:var(--chip);margin-top:12px;border-radius:3px}.bar i{display:block;height:100%;background:var(--c);border-radius:3px}
+.detail{margin-top:18px;background:var(--card);border:1px solid var(--line);border-radius:4px;padding:26px;display:grid;grid-template-columns:1.4fr 1fr;gap:28px}
+@media(max-width:800px){.detail{grid-template-columns:1fr}}
+.detail h3{font-size:26px;margin:0}.detail h4{font:500 12px Jost;letter-spacing:.2em;text-transform:uppercase;color:var(--acc);margin:18px 0 6px}
+.detail ul{margin:0;padding-left:18px}.detail li{margin:4px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.chip{background:var(--chip);border:1px solid var(--line);border-radius:20px;padding:3px 11px;font-size:12px;color:var(--mute)}
+.stat{display:grid;grid-template-columns:1fr auto;gap:2px 10px;font-size:13px;margin-top:12px}.stat span{color:var(--mute)}.stat b{text-align:right}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:4px;background:var(--card)}
+table{border-collapse:collapse;width:100%;min-width:760px;font-size:13px}
+th,td{padding:9px 10px;text-align:center;border-bottom:1px solid var(--line)}
+th{font:500 11px Jost;letter-spacing:.12em;text-transform:uppercase;color:var(--mute)}th:first-child,td:first-child{text-align:left}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}@media(max-width:800px){.two{grid-template-columns:1fr}}
+.box{background:var(--card);border:1px solid var(--line);border-radius:4px;padding:18px}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+label{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--mute);text-transform:uppercase;letter-spacing:.1em}
+input,select{background:var(--chip);color:var(--ink);border:1px solid var(--line);border-radius:3px;padding:9px;font:14px Inter}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--acc)}
+.cb{flex-direction:row;align-items:center;gap:10px}
+button{background:var(--acc);color:#001018;border:0;padding:12px 26px;font:600 13px Jost;letter-spacing:.2em;text-transform:uppercase;border-radius:3px;cursor:pointer;margin-top:18px}
+button:hover{filter:brightness(1.1)}
+.res{margin-top:22px;display:none}.prow{display:grid;grid-template-columns:190px 1fr 52px;gap:10px;align-items:center;margin:7px 0;font-size:13px}
+@media(max-width:600px){.prow{grid-template-columns:110px 1fr 46px}}
+.prow .bar{margin:0;height:9px}
+.note{font-size:12px;color:var(--mute);margin-top:14px}
+footer{max-width:1120px;margin:56px auto 0;padding:24px;border-top:1px solid var(--line);color:var(--mute);font-size:12px;text-align:center}
+</style>
+</head>
+<body>
+<nav>
+<a class="brand" href="#top"><svg viewBox="0 0 100 100"><use href="#star"/></svg><span class="jost" style="letter-spacing:.2em;font-size:13px">MERCEDES-BENZ</span></a>
+<a href="#segmentos">Segmentos</a><a href="#comparativa">Comparativa</a><a href="#clasificador">Clasificador</a><a href="#acciones">Acciones</a>
+</nav>
+<svg width="0" height="0" style="position:absolute"><defs>
+<linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f6f8"/><stop offset=".5" stop-color="#9aa3ad"/><stop offset="1" stop-color="#e3e7ea"/></linearGradient>
+<g id="star"><circle cx="50" cy="50" r="46" fill="none" stroke="url(#sg)" stroke-width="5"/><path fill="url(#sg)" d="M50 6 53.5 50 46.5 50Z M50 50 88 72 85 77 47 53Z M50 50 12 72 15 77 53 53Z"/><path fill="url(#sg)" d="M50 50 53.6 49.4 87.5 70 84.5 76Z M50 50 46.4 49.4 12.5 70 15.5 76Z" opacity=".001"/></g>
+</defs></svg>
+
+<section class="hero" id="top">
+<svg viewBox="0 0 100 100"><use href="#star"/></svg>
+<div class="eyebrow">Malackathon 2026 · Clustering the Star</div>
+<h1>Segmentos de clientes</h1>
+<p>Seis perfiles obtenidos con K-Means sobre 173.456 clientes de Mercedes-Benz. Explora cada segmento, compáralos y averigua a cuál pertenece un cliente nuevo y qué estrategia comercial le encaja.</p>
+<div class="kpis">
+<div class="kpi"><b>173.456</b><span>Clientes</span></div><div class="kpi"><b>6</b><span>Segmentos (k)</span></div>
+<div class="kpi"><b>4</b><span>Líneas de marketing</span></div><div class="kpi"><b>19,3 %</b><span>Segmento mayor</span></div>
+</div>
+</section>
+
+<section id="segmentos">
+<h2>Los seis segmentos</h2><div class="rule"></div>
+<p class="sub">Pulsa en un segmento para ver su ficha completa: perfil, rasgos distintivos, oportunidad, riesgo y estrategia recomendada.</p>
+<div class="grid" id="cards"></div>
+<div class="detail" id="detail"></div>
+</section>
+
+<section id="comparativa">
+<h2>Comparativa</h2><div class="rule"></div>
+<p class="sub">Mapa de calor: cuánto se aleja cada segmento de la media de los seis (en desviaciones típicas entre segmentos). <b style="color:var(--acc)">Azul</b> = por encima, <b style="color:var(--mute)">gris</b> = por debajo.</p>
+<div class="scroll"><table id="heat"></table></div>
+<div class="two">
+<div class="box"><h3 class="jost" style="margin:0 0 10px;font-size:15px;text-transform:uppercase">Peso de cada segmento</h3><div id="weights"></div></div>
+<div class="box"><h3 class="jost" style="margin:0 0 10px;font-size:15px;text-transform:uppercase">Perfil de radar · <span id="rname"></span></h3><div id="radar" style="max-width:340px;margin:auto"></div></div>
+</div>
+</section>
+
+<section id="clasificador">
+<h2>Clasificador de clientes</h2><div class="rule"></div>
+<p class="sub">Introduce los datos de un cliente y obtén el segmento más probable y la estrategia recomendada.</p>
+<div class="box">
+<div class="form">
+<label>Rango de edad<select id="f_edad"><option value="21">Menos de 25</option><option value="29.5">25-34</option><option value="39.5">35-44</option><option value="49.5" selected>45-54</option><option value="59.5">55-64</option><option value="70">65+</option></select></label>
+<label>Poder adquisitivo por hogar (€)<input id="f_pp" type="number" value="105000" step="1000"></label>
+<label>Meses como cliente<input id="f_meses" type="number" value="34"></label>
+<label>Antigüedad del vehículo (años)<input id="f_veh" type="number" value="4" step="0.5"></label>
+<label>Visitas al taller por vehículo<input id="f_vis" type="number" value="2" step="0.5"></label>
+<label>Financiación activa<select id="f_fin"><option value="0">No</option><option value="1">Sí (leasing/financiación)</option></select></label>
+<label>Motorización<select id="f_ele"><option value="0">Combustión / mild hybrid</option><option value="1">Eléctrico o híbrido enchufable</option></select></label>
+<label class="cb"><input type="checkbox" id="f_tel" checked> Con telemetría</label>
+<label class="cb"><input type="checkbox" id="f_amg"> Modelo AMG</label>
+<label class="cb"><input type="checkbox" id="f_van"> Furgoneta</label>
+</div>
+<button id="go">Clasificar cliente</button>
+<div class="res" id="res"></div>
+<p class="note">Cómo funciona: se mide la distancia del cliente al centroide de cada segmento (variables escaladas por la dispersión entre centroides) y se convierte en probabilidad con una función softmax. Usa los centroides publicados en el notebook, por lo que es una aproximación del modelo; para asignaciones exactas, exporta el scaler y el KMeans entrenados.</p>
+</div>
+</section>
+
+<section id="acciones">
+<h2>Plan de acción por segmento</h2><div class="rule"></div>
+<p class="sub">Resumen para marketing en las cuatro líneas del reto.</p>
+<div class="scroll"><table id="plan" style="min-width:900px"></table></div>
+</section>
+<footer>Malackathon 2026 · Mercedes-Benz Group Services Madrid · Datos: notebook 04_segmentos · Proyecto de hackathon, no es una web oficial de Mercedes-Benz.</footer>
+
+<script>
+const S=[
+{n:"El Sénior Recién Llegado",pct:16.9,cnt:29388,c:"#7fd1f5",tag:"Mayores, nuevos en la marca y con coche reciente",
+ perfil:"Clientes de más edad (7 de cada 10 tienen 55 o más) que acaban de llegar: unos 15 meses como clientes, la menor antigüedad de la base, con un coche muy reciente (2,6 años). Concentra más furgonetas y un peso alto de electrificados, con el menor poder adquisitivo.",
+ rasgos:["Antigüedad como cliente mínima","Pocas visitas al taller aún","Menos telemetría que la media","16 % sin vehículo conectado"],
+ opp:"Consolidar la relación desde el inicio: quien se siente bien acompañado el primer año suele renovar con la marca.",risk:"Abandonar antes de crear hábito de taller oficial; frustración con la tecnología (app, carga).",
+ est:["Bienvenida acompañada: llamada de seguimiento y sesión presencial para configurar coche y app","Primer plan de mantenimiento para vincularlos al taller oficial","Asesoramiento de carga en casa para eléctricos e híbridos enchufables"],
+ plan:["Asesoramiento para el primer cambio","Primer plan de mantenimiento","Bienvenida acompañada","Teléfono y correo postal"]},
+{n:"El Ejecutivo Premium AMG",pct:15.1,cnt:26245,c:"#c8a45c",tag:"Gama alta, alto poder adquisitivo y perfil deportivo",
+ perfil:"Clientes de mediana edad (45-54) con alto poder adquisitivo y los vehículos de mayor gama: GLE/GLS y Clase E son mayoría y más de una cuarta parte conduce un AMG. Es el segmento con más híbridos enchufables y telemetría alta. No tiene furgonetas.",
+ rasgos:["Máximo % de AMG (26,9 %)","Gama superior","Buena conectividad (71 % telemetría)","35 % con financiación activa"],
+ opp:"Mayor margen por cliente: subida a AMG, EQS y Maybach y servicios de alto valor.",risk:"Una mala experiencia de servicio pesa mucho; tienen alternativas premium de la competencia.",
+ est:["Upsell a la gama más alta: presentaciones privadas de AMG, EQS y Maybach, y experiencias en circuito","Servicio concierge: recogida y entrega del coche y vehículo de sustitución de su misma gama","Renovación anticipada para quienes tienen el leasing a punto de vencer"],
+ plan:["AMG, EQS y Maybach","Servicio concierge","Experiencias exclusivas","Gestor personal"]},
+{n:"El Conductor en Leasing",pct:18.4,cnt:31980,c:"#00adef",tag:"Financiación activa y renovación cíclica",
+ perfil:"Clientes de 35-44 años, mayoritariamente suizos y con alto poder adquisitivo, de los que prácticamente todos (96 %) tienen un contrato de financiación activo. Coche reciente (2,8 años), uso regular del taller y casi todos con un vehículo conectado.",
+ rasgos:["Financiación activa 96 %","Edad intermedia","Coche nuevo","Alto uso del taller (2,7 visitas)"],
+ opp:"El calendario del contrato permite anticipar el momento de compra y encadenar un nuevo leasing.",risk:"Pasar a la competencia al vencer el contrato si nadie les contacta a tiempo.",
+ est:["Programa de fin de contrato: contactar meses antes con la oferta del siguiente modelo","Mantenimiento incluido en la cuota y paquetes de servicios conectados","Comunicación digital (app y email) guiada por el calendario del contrato"],
+ plan:["Siguiente modelo al fin del contrato","Mantenimiento incluido en la cuota","Renovación encadenada","App y email"]},
+{n:"El Joven Aspiracional",pct:17.8,cnt:30809,c:"#a78bfa",tag:"Los más jóvenes, coche de entrada a la gama",
+ perfil:"El segmento más joven: dos de cada tres tienen menos de 35 años. Conducen compactos (Clase A, Clase C, CLA) con unos 5,5 años, mayoritariamente de combustión, y casi nunca han financiado con la marca. Poder adquisitivo por debajo de la media.",
+ rasgos:["Edad media 31,8 años","Coche de entrada con algunos años","Sin relación con la financiera (95 %)","15 % sin vehículo conectado"],
+ opp:"Es la cantera de futuros clientes premium: una buena experiencia hoy construye lealtad a largo plazo.",risk:"Sensibilidad al precio y atracción de marcas con cuotas más baratas.",
+ est:["Primera financiación: renting o leasing con cuota accesible para dar el salto a un coche nuevo","Vehículos de ocasión certificados como puerta de entrada a un modelo más reciente","Canales digitales y redes sociales, con mensajes de aspiración y comunidad de marca"],
+ plan:["Primera financiación y ocasión certificada","Revisión con precio cerrado","Comunidad de marca","Digital y redes sociales"]},
+{n:"El Veterano a Renovar",pct:12.4,cnt:21510,c:"#8a939b",tag:"Coche muy antiguo, diésel y riesgo de fuga",
+ perfil:"Clientes de edad alta con el vehículo más antiguo de la base (9,4 años), casi siempre de combustión (85 %) y en buena parte diésel. Casi ninguno tiene financiación activa, usan poco el taller oficial y tienen menos telemetría que la media.",
+ rasgos:["Vehículo de 9,4 años","Electrificación prácticamente nula (1,3 %)","Poco taller (0,8 visitas)","16 % sin vehículo conectado"],
+ opp:"Gran ventana de renovación: coche amortizado y posibilidad de migrar a híbrido o eléctrico.",risk:"Riesgo real de abandonar la marca o pasarse a talleres independientes.",
+ est:["Campaña de renovación: tasación del vehículo actual y plan de cambio, con prueba de híbridos y eléctricos","Recuperación de posventa: mantenimiento a precio cerrado para coches de más de 8 años","Contacto por teléfono y correo postal, más adecuados para este perfil"],
+ plan:["Plan de cambio con tasación","Mantenimiento a precio cerrado (>8 años)","Recuperación de cliente","Teléfono y correo postal"]},
+{n:"El Fiel del Taller Oficial",pct:19.3,cnt:33524,c:"#e6e9ec",tag:"Los más antiguos, más fieles y con más valor",
+ perfil:"Los clientes más antiguos de la marca (más de 4 años de media) y con el mayor poder adquisitivo, mayoritariamente suizos y de edad alta. Son los que más usan el taller oficial (cerca de 4 visitas por vehículo) y tienen la telemetría más alta. Compran al contado.",
+ rasgos:["52 meses como clientes","Poder adquisitivo máximo (118,5 k€)","3,9 visitas al taller","Telemetría 72 %"],
+ opp:"Mayor valor de posventa y mejor candidato a prescriptor: relación consolidada y compra al contado.",risk:"Dar por hecha su lealtad: si no se reconoce, pueden explorar otras marcas.",
+ est:["Programa de fidelización con ventajas exclusivas: revisiones prioritarias, eventos de marca y descuentos en accesorios","Extensión de garantía y planes de mantenimiento premium","Venta del siguiente vehículo al contado con condiciones preferentes"],
+ plan:["Nuevo modelo al contado","Extensión de garantía premium","Programa VIP","Concesionario"]}];
+// centroides por clúster 0..5
+const V=[["Edad (años)",[60.6,48.7,44.8,31.8,54.9,56.4],"Edad"],["Poder adquisitivo hogar (€)",[89103,112803,114710,93453,100162,118540],"Poder adq."],
+["Meses como cliente",[15,38.6,37.2,26.8,30.6,52.3],"Antig. cliente"],["Antigüedad vehículo (años)",[2.6,3.8,2.8,5.5,9.4,5],"Antig. vehículo"],
+["Visitas taller",[.6,2.9,2.7,1.2,.8,3.9],"Visitas taller"],["Telemetría %",[43.4,71,64.6,60.8,43,71.8],"Telemetría"],
+["Electrificado %",[35.5,36.4,25.2,9.6,1.3,19.4],"Electrificado"],["Financiación activa %",[9.8,35.1,96.3,2.5,1.6,4.2],"Financiación"],
+["Furgoneta %",[16.6,0,12.4,10.5,8,14.6],"Furgoneta"],["AMG %",[4.9,26.9,13.1,14.3,12.2,10.8],"AMG"]];
+const mean=a=>a.reduce((x,y)=>x+y)/a.length,sd=a=>{const m=mean(a);return Math.sqrt(mean(a.map(x=>(x-m)**2)))||1};
+const $=id=>document.getElementById(id),fmt=x=>x.toLocaleString("es-ES");
+let sel=0;
+function cards(){$("cards").innerHTML=S.map((s,i)=>`<div class="seg ${i==sel?'on':''}" style="--c:${s.c}" onclick="pick(${i})"><small>Clúster ${i} · ${fmt(s.cnt)} clientes</small><h3>${s.n}</h3><p>${s.tag}</p><div class="bar"><i style="width:${s.pct/19.3*100}%"></i></div></div>`).join("")}
+function detail(){const s=S[sel];
+$("detail").style.borderTop="3px solid "+s.c;
+$("detail").innerHTML=`<div><div class="eyebrow" style="color:${s.c}">Clúster ${sel} · ${s.pct} % de la base</div><h3>${s.n}</h3><h4>Perfil</h4><p style="margin:0">${s.perfil}</p>
+<div class="chips">${s.rasgos.map(r=>`<span class="chip">${r}</span>`).join("")}</div>
+<h4>Oportunidad</h4><p style="margin:0">${s.opp}</p><h4>Riesgo</h4><p style="margin:0">${s.risk}</p>
+<h4>Estrategia recomendada</h4><ul>${s.est.map(e=>`<li>${e}</li>`).join("")}</ul></div>
+<div><h4 style="margin-top:0">Cifras clave</h4><div class="stat">${V.map(v=>`<span>${v[0]}</span><b>${v[1][sel]>=1000?fmt(Math.round(v[1][sel])):v[1][sel]}</b>`).join("")}</div></div>`}
+function pick(i){sel=i;cards();detail();radar()}
+function heat(){const h=V.map(v=>{const m=mean(v[1]),d=sd(v[1]);return v[1].map(x=>(x-m)/d)});
+$("heat").innerHTML="<tr><th>Segmento</th>"+V.map(v=>`<th>${v[2]}</th>`).join("")+"</tr>"+S.map((s,i)=>`<tr><td><span style="color:${s.c}">●</span> ${s.n}</td>`+V.map((v,j)=>{const z=h[j][i],a=Math.min(Math.abs(z)/1.8,1)*.75;
+return `<td style="background:${z>=0?`rgba(0,173,239,${a})`:`rgba(150,160,170,${a})`}">${z>0?"+":""}${z.toFixed(1)}</td>`}).join("")+"</tr>").join("");
+$("weights").innerHTML=S.map(s=>`<div class="prow" style="--c:${s.c}"><span>${s.n}</span><div class="bar"><i style="width:${s.pct/19.3*100}%"></i></div><b>${s.pct} %</b></div>`).join("")}
+function radar(){const R=[0,1,2,3,4,5,6,7],n=R.length,cx=150,cy=150,r=105;$("rname").textContent=S[sel].n;
+const nv=R.map(j=>{const a=V[j][1],lo=Math.min(...a),hi=Math.max(...a);return (a[sel]-lo)/(hi-lo)});
+const gl=R.map(j=>{const a=V[j][1],lo=Math.min(...a),hi=Math.max(...a);return (mean(a)-lo)/(hi-lo)});
+const pt=(k,f)=>[cx+Math.sin(2*Math.PI*k/n)*r*f,cy-Math.cos(2*Math.PI*k/n)*r*f],P=a=>a.map((f,k)=>pt(k,f).join(",")).join(" ");
+let g=[.5,1].map(f=>`<polygon points="${P(R.map(()=>f))}" fill="none" stroke="var(--line)"/>`).join("");
+g+=R.map((j,k)=>{const [x,y]=pt(k,1.22);return `<line x1="${cx}" y1="${cy}" x2="${pt(k,1)[0]}" y2="${pt(k,1)[1]}" stroke="var(--line)"/><text x="${x}" y="${y}" fill="var(--mute)" font-size="9.5" text-anchor="middle" dominant-baseline="middle">${V[j][2]}</text>`}).join("");
+$("radar").innerHTML=`<svg viewBox="0 0 300 300" width="100%">${g}<polygon points="${P(gl)}" fill="none" stroke="var(--mute)" stroke-dasharray="4"/><polygon points="${P(nv)}" fill="${S[sel].c}" fill-opacity=".3" stroke="${S[sel].c}" stroke-width="2"/></svg><p class="note" style="text-align:center;margin:0">Línea discontinua: media de los segmentos</p>`}
+$("go").onclick=()=>{const x=[+$("f_edad").value,+$("f_pp").value,+$("f_meses").value,+$("f_veh").value,+$("f_vis").value,$("f_tel").checked?100:0,+$("f_ele").value*100,+$("f_fin").value*100,$("f_van").checked?100:0,$("f_amg").checked?100:0];
+const ord=[0,1,2,3,4,6,7,5,8,9]; // mapear al orden de V
+const val=[x[0],x[1],x[2],x[3],x[4],x[5],x[6],x[7],x[8],x[9]];
+const d2=S.map((_,i)=>V.reduce((acc,v,j)=>acc+((val[j]-v[1][i])/sd(v[1]))**2,0));
+const e=d2.map(d=>Math.exp(-(d-Math.min(...d2))/2.5)),t=e.reduce((a,b)=>a+b),p=e.map(v=>v/t);
+const rk=p.map((v,i)=>[v,i]).sort((a,b)=>b[0]-a[0]),b=S[rk[0][1]];
+$("res").style.display="block";
+$("res").innerHTML=`<div style="border-left:4px solid ${b.c};padding:6px 18px"><div class="eyebrow" style="color:${b.c}">Segmento más probable · ${(rk[0][0]*100).toFixed(0)} %</div><h3 style="font-size:28px;margin:4px 0">${b.n}</h3><p style="margin:0;color:var(--mute)">${b.tag}</p></div>
+<div style="margin-top:16px">${rk.map(([v,i])=>`<div class="prow" style="--c:${S[i].c}"><span>${S[i].n}</span><div class="bar"><i style="width:${v*100}%"></i></div><b>${(v*100).toFixed(0)} %</b></div>`).join("")}</div>
+<div class="detail" style="margin-top:16px;grid-template-columns:1fr"><div><h4 style="margin-top:0">Estrategia de marketing recomendada</h4><ul>${b.est.map(e=>`<li>${e}</li>`).join("")}</ul>
+<div class="chips"><span class="chip">Vehículo: ${b.plan[0]}</span><span class="chip">Mantenimiento: ${b.plan[1]}</span><span class="chip">Fidelización: ${b.plan[2]}</span><span class="chip">Canal: ${b.plan[3]}</span></div></div></div>`}
+function plan(){$("plan").innerHTML="<tr><th>Segmento</th><th>% clientes</th><th>Oferta de vehículo</th><th>Plan de mantenimiento</th><th>Fidelización</th><th>Canal</th></tr>"+S.map(s=>`<tr><td><span style="color:${s.c}">●</span> ${s.n}</td><td>${s.pct}</td>${s.plan.map(p=>`<td>${p}</td>`).join("")}</tr>`).join("")}
+cards();detail();heat();radar();plan();
+</script>
+</body>
+</html>
