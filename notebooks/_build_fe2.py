@@ -1,8 +1,8 @@
-"""Genera notebooks/02_feature_engineering_2.ipynb (Reto 2 · versión 2).
+"""Genera notebooks/02_feature_engineering.ipynb (Reto 2 · versión 2).
 
 Uso (desde la carpeta notebooks/):
     python _build_fe2.py
-    jupyter nbconvert --to notebook --execute --inplace 02_feature_engineering_2.ipynb
+    jupyter nbconvert --to notebook --execute --inplace 02_feature_engineering.ipynb
 """
 from _build_notebooks import SETUP, code, md, save
 
@@ -908,4 +908,4 @@ add(md('''## Resumen
 - **Salidas:** `data/clientes_features.csv` (173.456 clientes, sin nulos) y `data/X_model_fe2.pkl`.'''))
 
 if __name__ == "__main__":
-    save("02_feature_engineering_2.ipynb", cells)
+    save("02_feature_engineering.ipynb", cells)

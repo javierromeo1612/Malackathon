@@ -1,8 +1,8 @@
-"""Genera notebooks/03_kmeans_2.ipynb (Reto 3 · K-Means con k = 2…20).
+"""Genera notebooks/03_kmeans.ipynb (Reto 3 · K-Means con k = 2…20).
 
 Uso (desde la carpeta notebooks/):
     python _build_kmeans2.py
-    jupyter nbconvert --to notebook --execute --inplace 03_kmeans_2.ipynb
+    jupyter nbconvert --to notebook --execute --inplace 03_kmeans.ipynb
 """
 from _build_notebooks import SETUP, code, md, save
 
@@ -285,4 +285,4 @@ add(md('''
 '''))
 
 if __name__ == "__main__":
-    save("03_kmeans_2.ipynb", cells)
+    save("03_kmeans.ipynb", cells)

@@ -1,4 +1,6 @@
-"""Genera los notebooks del reto básico a partir de celdas definidas aquí.
+"""Utilidades comunes (SETUP, md, code, save) para los generadores de notebooks.
+
+Histórico: generaba la primera versión de los notebooks 01-04; ese guardado está desactivado (ver el final).
 
 Uso (desde la raíz del repo):
     python notebooks/_build_notebooks.py
@@ -724,7 +726,7 @@ fichas'''),
 ]
 
 if __name__ == "__main__":
-    save("01_eda.ipynb", eda)
-    save("02_feature_engineering.ipynb", fe)
-    save("03_kmeans.ipynb", km)
-    save("04_segmentos.ipynb", seg)
+    # Desactivado: 01_eda.ipynb se mantiene a mano y 02/03 los generan _build_fe2.py y _build_kmeans2.py.
+    # Ejecutar este script sobrescribiría esos notebooks con versiones antiguas. Hoy solo se usa como
+    # librería (SETUP, md, code, save) desde los demás _build_*.py.
+    print("Este script ya no genera notebooks; usa _build_fe2.py, _build_kmeans2.py o _build_segmentos2.py.")
