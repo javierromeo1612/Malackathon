@@ -1,0 +1,40 @@
+columna,nulos antes,% antes,tratamiento,detalle
+Unnamed: 0,0,0.0,Eliminada,Índice exportado sin significado (Parte 1).
+client_id,0,0.0,Sin nulos · clave,Clave de agregación; no es feature.
+vehicle_id,0,0.0,Sin nulos · clave,Sirve para contar vehículos por cliente; no es feature.
+age_range,0,0.0,Sin nulos,Se codifica como ordinal en el pipeline.
+gender_derived,33923,11.2,UNKNOWN,Nulo no aleatorio y dato inferido; no se imputa y no entra en el modelo.
+model_series,0,0.0,Sin nulos,Pista para deducir otras columnas; excluida del modelo (Parte 1).
+vehicle_type,922,0.3,UNKNOWN,Nombre comercial no reconstruible; excluida del modelo (Parte 1).
+model_class,3369,1.11,Deducida (validada),Del nombre del coche; sin evidencia -> UNKNOWN.
+product_group,0,0.0,Sin nulos,Base de main_is_van.
+engine_concept,134390,44.38,Deducida (validada),Cascada reglas/nombre/año/serie/clase; sin evidencia -> UNKNOWN (no combustión).
+country_code,0,0.0,Sin nulos,Grupo para imputar la zona; base de itvs_passed_count.
+fuel_type,178745,59.02,Deducida (validada),Reglas por motor y nombre diésel; sin evidencia -> UNKNOWN.
+date_of_first_registration,4182,1.38,Mediana de la serie,Fechas < 2000 -> nulo; marca registration_date_imputed.
+is_current_vehicle,0,0.0,Sin nulos,Elige el vehículo principal.
+role,0,0.0,Sin nulos,Se conserva el del vehículo principal.
+role_type,0,0.0,Sin nulos,Base de is_b2b.
+months_as_mb_customer,4,0.0,Mediana de grupo,4 filas: mediana del grupo con igual nº de vehículos conectados.
+currently_connected_vehicles,0,0.0,Sin nulos,Base de digital_engagement_index.
+finance_leasing_status,0,0.0,Sin nulos,One-hot en el pipeline.
+workshop_visits_warranty_goodwill,0,0.0,Sin nulos,Base de warranty_visit_frequency.
+consent_phone_communication_channel,0,0.0,Sin nulos,Se conserva en el CSV.
+consent_epost_communication_channel,0,0.0,Sin nulos,Base de digital_engagement_index.
+consent_post_communication_channel,0,0.0,Sin nulos,Se conserva en el CSV.
+purchasing_power_per_inhabitant_eur,19087,6.3,Mediana del país,Marca socio_imputed.
+purchasing_power_per_household_eur,19087,6.3,Mediana del país,Marca socio_imputed.
+population,19014,6.28,Mediana del país,Ceros -> nulo; marca socio_imputed.
+zipcode,16135,5.33,UNKNOWN,Identificador geográfico; excluido del CSV final y del modelo (Parte 1).
+trip_distance_average,185857,61.37,Eliminada -> has_telemetry,Falta estructural; no se imputa.
+trip_distance_mode,179830,59.38,Eliminada,Texto multivalor (Parte 1).
+trip_distance_median,179830,59.38,Eliminada -> has_telemetry,Falta estructural; no se imputa.
+trip_distance_all_counter,179830,59.38,Eliminada,Contador técnico (Parte 1).
+operating_hours_total,174358,57.57,Eliminada -> has_telemetry,Falta estructural; no se imputa.
+fuel_consumption_average,180725,59.67,Eliminada -> has_telemetry,Falta estructural; en eléctricos no existe.
+speed_average,182382,60.22,Eliminada -> has_telemetry,Falta estructural; no se imputa.
+speed_mode,181159,59.82,Eliminada,Texto multivalor (Parte 1).
+speed_median,181159,59.82,Eliminada -> has_telemetry,Falta estructural; no se imputa.
+speed_all_counter,181159,59.82,Eliminada,Contador técnico (Parte 1).
+number_of_households,19014,6.28,Mediana del país,Ceros -> nulo; marca socio_imputed.
+purchasing_power_millions_eur,19087,6.3,Recalculada,= pp por habitante × población / 1e6.

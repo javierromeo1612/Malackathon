@@ -11,11 +11,14 @@ Este repositorio cubre los **4 retos básicos**. Los retos avanzados (comparativ
 notebooks/
   01_eda.ipynb                  Reto 1 · Exploración y calidad de datos
   01b_tratamiento_nulos.ipynb   Reto 1 · Tratamiento de nulos columna a columna → data/datos_limpios.csv
-  02_feature_engineering.ipynb  Reto 2 · Selección de features, features derivadas y pipeline
+  02_feature_engineering.ipynb  Reto 2 · Primera versión (features y pipeline)
+  02_feature_engineering_2.ipynb Reto 2 · Versión final: nulos por columna, 10 features derivadas (pandas + SQL),
+                                selección, pipeline completo → data/clientes_features.csv
   03_kmeans.ipynb               Reto 3 · K-Means, método del codo, Silhouette, k final
   04_segmentos.ipynb            Reto 4 · Perfilado y nombres de negocio de los segmentos
   _build_notebooks.py           Genera los notebooks 01-04 (fuente de las celdas)
   _build_nulos.py               Genera el notebook 01b
+  _build_fe2.py                 Genera el notebook 02_feature_engineering_2
 src/
   mb_features.py                Limpieza, agregación a cliente, features derivadas y pipeline sklearn
   plot_style.py                 Estilo común de gráficos

@@ -1,0 +1,12 @@
+feature,origen,codificación,para qué sirve
+main_vehicle_age_years,derivada,numérica · RobustScaler,Ventana de renovación
+tenure_years,derivada,numérica · RobustScaler,Lealtad y ciclo de vida
+warranty_visit_frequency,derivada,log1p · RobustScaler,Uso de posventa
+digital_engagement_index,derivada,log1p · RobustScaler,Conectividad y canal digital
+purchasing_power_per_household_eur,base,log1p · RobustScaler,Capacidad de compra de la zona
+age_range,base,ordinal 0-5 · RobustScaler,Etapa vital
+main_model_class,base,gama 1-4 · RobustScaler,Nivel de gama
+main_is_van,derivada,binaria 0/1,Uso profesional
+has_telemetry,derivada,binaria 0/1,Cliente conectado
+finance_leasing_status,base,one-hot (4),Relación con la financiera
+main_engine_concept,base tratada,one-hot (5),Afinidad eléctrica
