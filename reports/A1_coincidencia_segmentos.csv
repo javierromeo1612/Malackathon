@@ -1,0 +1,6 @@
+,ARI frente a K-Means,NMI frente a K-Means
+K-Means (misma muestra),0.792,0.757
+GMM (full),0.159,0.258
+GMM (diag),0.198,0.265
+Agglomerative (ward),0.219,0.294
+Agglomerative (average),0.003,0.03

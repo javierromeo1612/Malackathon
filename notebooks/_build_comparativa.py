@@ -139,6 +139,7 @@ composicion = df_prepared[binarias].groupby(etiquetas["GMM (full)"]).mean()
 composicion.columns = [c.replace("finance_leasing_status_", "financ_").replace("main_engine_concept_", "motor_") for c in composicion.columns]
 composicion.insert(0, "% clientes", pd.Series(etiquetas["GMM (full)"]).value_counts(normalize=True).sort_index().values * 100)
 composicion.index.name = "componente GMM"
+composicion.to_csv(ROOT / "reports" / "A1_composicion_gmm.csv")
 composicion.round(2)'''))
 add(md('''
 **Diagnóstico.** Cada componente del GMM está definido casi por completo por las columnas 0/1. Todas reúnen a clientes con **la misma
@@ -228,7 +229,9 @@ for p, e in zip(percentiles, eps_candidatos):
     filas.append({"eps": round(e, 2), "percentil": p, "nº de grupos": int(l.max() + 1),
                   "% ruido": round((l == -1).mean() * 100, 1),
                   "% en el grupo mayor": round((l == pd.Series(l[l >= 0]).mode()[0]).mean() * 100, 1) if (l >= 0).any() else 0})
-pd.DataFrame(filas)'''))
+dbscan = pd.DataFrame(filas)
+dbscan.to_csv(ROOT / "reports" / "A1_dbscan.csv", index=False)
+dbscan'''))
 add(md('''
 Ninguna configuración produce 6 segmentos útiles: con radios pequeños aparecen muchos grupos y bastante ruido, y en cuanto el radio crece un poco
 casi todos los clientes se funden en **un único grupo**. Es lo esperable en una base de clientes que, como vimos en el cuaderno 03 y en el PCA,
@@ -284,6 +287,7 @@ coincidencia = pd.DataFrame({
     "ARI frente a K-Means": {n: adjusted_rand_score(ref, l) for n, l in etiquetas.items() if n != "K-Means"},
     "NMI frente a K-Means": {n: normalized_mutual_info_score(ref, l) for n, l in etiquetas.items() if n != "K-Means"},
 }).loc[[n for n in ORDEN if n != "K-Means"]].round(3)
+coincidencia.to_csv(ROOT / "reports" / "A1_coincidencia_segmentos.csv")
 coincidencia'''))
 add(md('''
 La tabla de contingencia muestra **a dónde van los clientes de cada segmento de K-Means** en los algoritmos alternativos con k = 6 que producen

@@ -394,7 +394,151 @@ def reto3():
     construir("RETO 3 BÁSICO - MERCEDES.pdf", h, max_paginas=2)
 
 
+# --------------------------------------------------------------------------- #
+# RETO AVANZADO 1 · Comparativa de algoritmos de clustering
+# --------------------------------------------------------------------------- #
+def avanzado1():
+    rep = ROOT / "reports"
+    met = pd.read_csv(rep / "A1_comparativa_algoritmos.csv", index_col="algoritmo")
+    coin = pd.read_csv(rep / "A1_coincidencia_segmentos.csv", index_col=0)
+    dbs = pd.read_csv(rep / "A1_dbscan.csv")
+    gmm = pd.read_csv(rep / "A1_composicion_gmm.csv", index_col=0)
+    km, ward, avg, ctrl = met.loc["K-Means"], met.loc["Agglomerative (ward)"], met.loc["Agglomerative (average)"], met.loc["K-Means (misma muestra)"]
+    gfull, gdiag = met.loc["GMM (full)"], met.loc["GMM (diag)"]
+    assert met["silueta"].idxmax() == "K-Means" and met["calinski_harabasz"].idxmax() == "K-Means"
+
+    h = cabecera("AVANZADO 1")
+    h += [Paragraph("A. Planteamiento", SECCION),
+          p("El objetivo es comprobar si K-Means es el algoritmo más adecuado para segmentar a los clientes, comparándolo con otros "
+            "algoritmos entrenados con <b>el mismo número de grupos (k = 6)</b> y <b>los mismos datos preparados</b>: la matriz del reto 2 "
+            "con <b>173.456 clientes y 18 columnas</b> codificadas y escaladas. Así, cualquier diferencia se debe al algoritmo y no a los datos."),
+          tabla([
+              ["Algoritmo", "Cómo agrupa a los clientes", "Configuración probada"],
+              ["K-Means (referencia)", "Asigna cada cliente al centro más cercano; busca grupos compactos.", "k = 6, n_init=10, random_state=42"],
+              ["Gaussian Mixture (GMM)", "Supone que los clientes proceden de 6 distribuciones normales y estima la probabilidad de "
+               "pertenecer a cada una.", "Covarianza completa (full) y diagonal (diag)"],
+              ["Agglomerative Clustering", "Parte de cada cliente como un grupo y une los más parecidos hasta quedarse con 6.",
+               "Criterios ward y average"],
+              ["DBSCAN (contraste)", "Agrupa zonas densas y marca como ruido a los clientes aislados; no admite fijar k.",
+               "Radio eps elegido con el gráfico de k-distancias"],
+          ], [4 * cm, 8 * cm, 5 * cm], envolver=True),
+          Spacer(1, 4),
+          bullets([
+              "<b>Métricas:</b> silueta (mayor es mejor), Davies-Bouldin (menor es mejor), Calinski-Harabasz (mayor es mejor) y tamaño del "
+              "grupo menor y mayor, que indica si los segmentos son utilizables para marketing. La silueta de todos los algoritmos se mide sobre "
+              "<b>las mismas 3 muestras de 20.000 clientes</b>, para que la comparación sea justa.",
+              "<b>Limitación del clustering aglomerativo:</b> necesita la distancia entre todos los pares de clientes (más de 100 GB de memoria "
+              "con 173.456). Se entrenó con una muestra de 15.000 clientes y el resto se asignó al grupo de su cliente más parecido. Como "
+              "<b>control</b>, se entrenó también K-Means con esa misma muestra, para separar el efecto del algoritmo del de la muestra.",
+          ])]
+
+    orden = ["K-Means", "K-Means (misma muestra)", "GMM (full)", "GMM (diag)", "Agglomerative (ward)", "Agglomerative (average)"]
+    filas = [["Algoritmo", "Silueta", "Davies-Bouldin", "Calinski-Harabasz", "Grupo menor", "Grupo mayor"]]
+    for a in orden:
+        r = met.loc[a]
+        filas.append([a, n(r.silueta, 3), n(r.davies_bouldin, 3), n(r.calinski_harabasz), f"{n(r['grupo_menor_%'], 1)} %",
+                      f"{n(r['grupo_mayor_%'], 1)} %"])
+    h += [Paragraph("B. Tabla y gráfico comparativo de métricas", SECCION),
+          tabla(filas, [4.6 * cm, 1.9 * cm, 2.5 * cm, 3 * cm, 2.3 * cm, 2.3 * cm]),
+          Spacer(1, 5),
+          figura(FIG / "A1_comparativa_metricas.png", 17, "Figura 1. Comparativa de métricas con k = 6 y los mismos datos."),
+          bullets([
+              f"<b>K-Means obtiene la mejor silueta ({n(km.silueta, 3)}) y el mejor Calinski-Harabasz ({n(km.calinski_harabasz)})</b>, con "
+              f"segmentos equilibrados (entre el {n(km['grupo_menor_%'], 1)} % y el {n(km['grupo_mayor_%'], 1)} % de los clientes).",
+              f"<b>Davies-Bouldin:</b> el valor más bajo es el de Agglomerative con average ({n(avg.davies_bouldin, 3)}), pero es un espejismo: "
+              f"ese índice premia que los grupos estén lejos entre sí, y average deja al {n(avg['grupo_mayor_%'])} % de los clientes en un único "
+              f"grupo y crea cinco grupos diminutos de clientes extremos. Entre las segmentaciones utilizables, K-Means es también el mejor.",
+              f"<b>El control confirma la comparación:</b> K-Means entrenado con la misma muestra que el aglomerativo mantiene una silueta de "
+              f"{n(ctrl.silueta, 3)}, muy superior a la de Ward ({n(ward.silueta, 3)}). La diferencia se debe al algoritmo, no a la muestra.",
+          ])]
+
+    fin_cols = [c for c in gmm.columns if c.startswith("financ_")]
+    mot_cols = [c for c in gmm.columns if c.startswith("motor_")]
+    etiqueta = {"financ_never_active": "Nunca ha financiado", "financ_active_FL_only": "Financiación activa",
+                "financ_active_FL_and_CASH": "Financiación activa (y contado)", "financ_was_active": "Financió en el pasado"}
+    filas = [["Componente", "% clientes", "Situación de financiación", "Motorización predominante"]]
+    for comp, r in gmm.iterrows():
+        f_dom = r[fin_cols].astype(float).idxmax()
+        activa = r[["financ_active_FL_only", "financ_active_FL_and_CASH"]].astype(float).sum()
+        fin_txt = f"Financiación activa ({n(activa * 100)} %)" if activa >= 0.95 else f"{etiqueta[f_dom]} ({n(r[f_dom] * 100)} %)"
+        motores = {"motor_COMBUSTION": "Combustión", "motor_MILD_HYBRID": "Mild hybrid", "motor_PLUGIN_HYBRID": "Híbrido enchufable",
+                   "motor_ELECTRIC": "Eléctrico", "motor_UNKNOWN": "Desconocido"}
+        cuotas = r[mot_cols].astype(float).sort_values(ascending=False)
+        principales = cuotas[cuotas >= 0.25]                      # todas las motorizaciones con peso relevante (evita ocultar empates)
+        filas.append([str(comp), f"{n(r['% clientes'], 1)} %", fin_txt,
+                      " · ".join(f"{motores[m]} {n(v * 100)} %" for m, v in principales.items())])
+    h += [Paragraph("C. Análisis de cada algoritmo alternativo", SECCION),
+          Paragraph("Gaussian Mixture Models", SUBSECCION),
+          p(f"El GMM obtiene peor silueta ({n(gfull.silueta, 3)} con covarianza completa y {n(gdiag.silueta, 3)} con diagonal), concentra el "
+            f"{n(gfull['grupo_mayor_%'])} % de los clientes en un solo grupo y asigna a todos los clientes con una probabilidad prácticamente "
+            f"igual a 1. Al revisar la composición de sus componentes se ve el motivo: <b>cada una reúne a clientes con la misma situación de "
+            f"financiación</b>, y varias también con la misma motorización:"),
+          tabla(filas, [2.3 * cm, 2.2 * cm, 6 * cm, 6.5 * cm]),
+          Spacer(1, 4),
+          p("La razón es matemática: el GMM supone datos <b>continuos y gaussianos</b>. Cuando un grupo tiene una columna 0/1 constante (por "
+            "ejemplo, todos nunca han financiado), su varianza en esa columna es cero y la densidad se dispara, así que al modelo le compensa "
+            "separar por las columnas binarias en lugar de por el perfil completo del cliente. <b>El GMM no es adecuado para datos con muchas "
+            "variables categóricas codificadas en one-hot</b>, como los nuestros."),
+          Paragraph("Agglomerative Clustering", SUBSECCION),
+          p(f"Con el criterio <b>ward</b> (el más parecido a K-Means) produce grupos utilizables, aunque menos equilibrados (del "
+            f"{n(ward['grupo_menor_%'])} % al {n(ward['grupo_mayor_%'])} % de los clientes) y con una silueta claramente inferior. Con "
+            f"<b>average</b> degenera: los clientes con valores extremos forman grupos de muy pocas personas y el resto queda junto. Además, "
+            f"solo puede entrenarse con una muestra, lo que lo hace poco práctico para una base de este tamaño."),
+          Paragraph("DBSCAN", SUBSECCION),
+          p("DBSCAN no permite fijar k = 6: el número de grupos lo decide el radio de vecindad (eps). Se probaron cuatro radios elegidos a partir "
+            "del gráfico de k-distancias:"),
+          tabla([["eps", "Percentil", "Nº de grupos", "% de ruido", "% en el grupo mayor"]] +
+                [[n(r.eps, 2), str(int(r.percentil)), str(int(r["nº de grupos"])), f"{n(r['% ruido'], 1)} %",
+                  f"{n(r['% en el grupo mayor'], 1)} %"] for _, r in dbs.iterrows()],
+                [2.2 * cm, 2.2 * cm, 2.8 * cm, 2.8 * cm, 3.6 * cm]),
+          Spacer(1, 4),
+          p("Con radios pequeños aparecen muchos grupos y una parte de los clientes queda como ruido, sin segmento; en cuanto el radio crece, casi "
+            "todos se funden en un único grupo. Es lo esperable en una base de clientes que forma un <b>continuo</b> sin zonas densas separadas "
+            "por huecos. DBSCAN queda descartado.")]
+
+    filas = [["Algoritmo", "ARI frente a K-Means", "NMI frente a K-Means"]] + \
+            [[a, n(r.iloc[0], 3), n(r.iloc[1], 3)] for a, r in coin.iterrows()]
+    h += [Paragraph("D. ¿Cambian los segmentos entre algoritmos?", SECCION),
+          p("Para saber si los algoritmos encuentran los mismos segmentos, aunque los numeren distinto, se usan dos medidas de coincidencia: el "
+            "<b>ARI</b> (1 si dos segmentaciones son idénticas, 0 si coinciden lo mismo que por azar) y la <b>NMI</b> (de 0 a 1, información "
+            "compartida entre ambas)."),
+          tabla(filas, [6 * cm, 4 * cm, 4 * cm]),
+          Spacer(1, 5),
+          figura(FIG / "A1_contingencia.png", 17, "Figura 2. A dónde van los clientes de cada segmento de K-Means en GMM y en Ward (% de cada fila)."),
+          bullets([
+              f"<b>Sí, los segmentos cambian de forma significativa:</b> la coincidencia con K-Means es baja en todos los algoritmos alternativos "
+              f"(ARI de {n(coin.loc['GMM (full)'].iloc[0], 2)} en GMM y {n(coin.loc['Agglomerative (ward)'].iloc[0], 2)} en Ward), y los clientes "
+              f"de casi todos los segmentos se reparten entre varios grupos de los otros algoritmos.",
+              "<b>El GMM reorganiza a los clientes por financiación y motorización</b> y mezcla perfiles muy distintos; <b>Ward</b> se parece algo "
+              "más a K-Means, pero traza las fronteras en otros puntos, algo esperable cuando los clientes forman un continuo.",
+              "<b>La excepción es el Conductor en Leasing</b>, que se mantiene reconocible en ambos algoritmos porque se define por una variable "
+              "muy marcada: la financiación activa.",
+              f"<b>K-Means es consistente consigo mismo:</b> entrenado con una muestra reproduce sus propios segmentos (ARI "
+              f"{n(coin.loc['K-Means (misma muestra)'].iloc[0], 2)}), mucho más que cualquier otro algoritmo. El reto avanzado 3 lo confirma con "
+              f"20 submuestras.",
+          ])]
+
+    h += [Paragraph("E. Conclusión: algoritmo más adecuado", SECCION),
+          p("<b>K-Means es el algoritmo más adecuado para esta segmentación</b>, por cinco motivos:"),
+          bullets([
+              "<b>Mejor calidad de los grupos:</b> la mejor silueta y el mejor Calinski-Harabasz de todos los algoritmos comparados con k = 6, y "
+              "el mejor Davies-Bouldin entre las segmentaciones utilizables.",
+              f"<b>Segmentos equilibrados y accionables:</b> entre el {n(km['grupo_menor_%'], 1)} % y el {n(km['grupo_mayor_%'], 1)} % de los "
+              f"clientes por segmento, frente al {n(gfull['grupo_mayor_%'])} % en un solo grupo del GMM o el {n(avg['grupo_mayor_%'])} % de "
+              f"Agglomerative average.",
+              "<b>Coherente con los datos:</b> trabaja con distancias y aprovecha todas las variables a la vez, mientras que el GMM se desvía hacia "
+              "las columnas binarias.",
+              "<b>Escalable:</b> se entrena con los 173.456 clientes en segundos; Agglomerative no cabe en memoria y DBSCAN ni siquiera permite fijar "
+              "el número de segmentos.",
+              "<b>Interpretable y reproducible:</b> cada segmento tiene un centro que resume a su cliente tipo y, con una semilla fija, el resultado "
+              "es siempre el mismo.",
+          ]),
+          p("<b>Matiz:</b> todas las siluetas son bajas, también la de K-Means, porque los clientes forman un continuo de perfiles. Los segmentos "
+            "deben interpretarse como perfiles tipo útiles para orientar acciones comerciales, no como grupos aislados.")]
+    construir("RETO AVANZADO 1 - MERCEDES.pdf", h, max_paginas=4)
+
+
 if __name__ == "__main__":
-    pedidos = sys.argv[1:] or ["1", "2", "3"]
+    pedidos = sys.argv[1:] or ["1", "2", "3", "A1"]
     for r in pedidos:
-        {"1": reto1, "2": reto2, "3": reto3}[r]()
+        {"1": reto1, "2": reto2, "3": reto3, "A1": avanzado1}[r]()
