@@ -566,30 +566,9 @@ def avanzado2():
     izquierda = reg[reg.PC1 < 0]
 
     h = cabecera("2 AVANZADO")
-    h += [Paragraph("A. El PCA y lo que se hace en este reto", SECCION),
-          p("El <b>Análisis de Componentes Principales (PCA)</b> es una técnica de reducción de dimensionalidad: transforma muchas variables, "
-            "en parte relacionadas entre sí, en un número menor de variables nuevas llamadas <b>componentes principales</b>. Cada componente es "
-            "una combinación de las variables originales y están ordenadas por la cantidad de información (varianza) que conservan: la primera "
-            "recoge la dirección en la que los clientes más se diferencian, la segunda la siguiente, independiente de la primera, y así "
-            "sucesivamente. Quedándonos con las dos o tres primeras podemos <b>dibujar a cada cliente en un plano o en un espacio 3D</b> "
-            "conservando la mayor parte posible de sus diferencias."),
-          p("En este reto se usa el PCA para <b>visualizar los seis segmentos</b> obtenidos con K-Means y valorar si se separan. Los pasos son:"),
-          bullets([
-              f"<b>Selección de variables:</b> el PCA se aplica sobre <b>{len(load)} features de negocio</b> (numéricas y binarias). Se eliminan "
-              f"antes las variables casi duplicadas, porque contarían dos veces y desplazarían los ejes hacia lo que miden:",
-          ]),
-          tabla([["Feature descartada", "Muy correlacionada con", "Correlación"]] +
-                [[r.descartada, r["muy correlacionada con"], n(r["ρ"], 2)] for _, r in desc.iterrows()],
-                [5.5 * cm, 5.5 * cm, 2.6 * cm]),
-          Spacer(1, 4),
-          bullets([
-              "<b>Escalado:</b> el PCA busca las direcciones de mayor varianza, así que sin escalar el poder adquisitivo (en euros) acapararía toda "
-              "la varianza solo por sus unidades. Se aplica <i>log1p</i> a las cuatro variables con cola larga y <i>StandardScaler</i> a las "
-              "continuas; las binarias se mantienen en 0/1.",
-              "<b>PCA con tres componentes</b> (<i>n_components=3</i>, <i>random_state=42</i>): se mide la varianza que explica cada una, se "
-              "analiza qué variables originales pesan más en cada componente, se dibujan los clientes en 2D y 3D coloreados por segmento y se "
-              "valora si los segmentos son visualmente separables.",
-          ])]
+    h += [p(f"En este reto aplicamos un <b>PCA</b> sobre {len(load)} features de negocio para resumir el perfil de cada cliente en tres "
+            f"componentes principales, de modo que podamos <b>visualizar los seis segmentos</b> de K-Means en 2D y 3D, interpretar qué mide cada "
+            f"componente y valorar si los segmentos son visualmente separables.")]
 
     h += [Paragraph("B. Varianza explicada por cada componente", SECCION),
           tabla([["Componente", "Varianza explicada", "Varianza acumulada"],
