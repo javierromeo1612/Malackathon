@@ -3,7 +3,7 @@
 Segmentación de la base de clientes de Mercedes-Benz (Suiza y Austria) con **K-Means** para habilitar
 ofertas de vehículos, planes de mantenimiento, campañas de fidelización y comunicaciones dirigidas.
 
-Este repositorio cubre los **4 retos básicos** y el **reto avanzado 2 (PCA)**. Los retos avanzados 1 (comparativa de algoritmos) y 3 (Jackknife) se añadirán después.
+Este repositorio cubre los **4 retos básicos** y los **retos avanzados 1 (comparativa de algoritmos) y 2 (PCA)**. El reto avanzado 3 (Jackknife) se añadirá después.
 
 ## Estructura
 
@@ -16,10 +16,12 @@ notebooks/
                                 k = 6 justificado y distribución → data/clientes_clusters.csv
   04_segmentos_2.ipynb          Reto 4 · Perfilado de los 6 segmentos, buyer personas, heatmap, radar y acciones
   04_segmentos.ipynb            Reto 4 · Versión anterior (5 segmentos sobre las features antiguas)
+  avanzado_1_comparativa.ipynb  Reto avanzado 1 · K-Means frente a GMM, Agglomerative y DBSCAN con k = 6
   avanzado_2_pca.ipynb          Reto avanzado 2 · PCA (2D y 3D), varianza explicada, loadings y separabilidad de los clústeres
   _build_fe2.py                 Genera el notebook 02_feature_engineering
   _build_kmeans2.py             Genera el notebook 03_kmeans
   _build_segmentos2.py          Genera el notebook 04_segmentos_2
+  _build_comparativa.py         Genera el notebook avanzado_1_comparativa
   _build_pca.py                 Genera el notebook avanzado_2_pca
   _build_notebooks.py           Utilidades comunes para los generadores (ya no genera notebooks)
 src/
@@ -84,6 +86,16 @@ clientes con el vehículo más antiguo, el público de las campañas de renovaci
 | **El Fiel del Taller Oficial** | 19,3 % | Los clientes más antiguos y con más poder adquisitivo; los que más usan el taller; compran al contado | Programa VIP y extensión de garantía |
 
 La ficha completa de cada segmento está en el notebook `04_segmentos_2.ipynb` y en `reports/fichas_segmentos_k6.csv`.
+
+## Reto avanzado 1 · Comparativa de algoritmos
+
+![Comparativa de métricas](reports/figures/A1_comparativa_metricas.png)
+
+Con k = 6 y los mismos datos, **K-Means** obtiene la mejor silueta (0,110) y el mejor Calinski-Harabasz, con segmentos equilibrados.
+El **GMM** se desvía hacia las columnas 0/1 (financiación y motorización) y concentra el 45 % de los clientes en un grupo; **Agglomerative**
+solo cabe en memoria con una muestra (Ward: silueta 0,075; `average` degenera en un grupo con el 97 %); **DBSCAN** no permite fijar k y funde a
+casi todos los clientes en un grupo. Los segmentos cambian mucho entre algoritmos (ARI frente a K-Means ≤ 0,22), mientras que K-Means entrenado
+con una muestra reproduce sus propios segmentos (ARI 0,79). Conclusión: K-Means es el algoritmo más adecuado.
 
 ## Reto avanzado 2 · PCA
 
