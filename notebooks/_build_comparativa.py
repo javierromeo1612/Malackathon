@@ -1,8 +1,8 @@
-"""Genera notebooks/avanzado_1_comparativa.ipynb (Reto avanzado 1 · comparativa de algoritmos de clustering).
+"""Genera notebooks/01_avanzada_comparativa.ipynb (Reto avanzado 1 · comparativa de algoritmos de clustering).
 
 Uso (desde la carpeta notebooks/):
     python _build_comparativa.py
-    jupyter nbconvert --to notebook --execute --inplace avanzado_1_comparativa.ipynb
+    jupyter nbconvert --to notebook --execute --inplace 01_avanzada_comparativa.ipynb
 """
 from _build_notebooks import SETUP, code, md, save
 
@@ -358,4 +358,4 @@ con un modelo pensado para datos mixtos.
 '''))
 
 if __name__ == "__main__":
-    save("avanzado_1_comparativa.ipynb", cells)
+    save("01_avanzada_comparativa.ipynb", cells)
