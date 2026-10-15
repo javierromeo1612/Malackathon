@@ -10,10 +10,12 @@ Este repositorio cubre los **4 retos básicos**. Los retos avanzados (comparativ
 ```
 notebooks/
   01_eda.ipynb                  Reto 1 · Exploración y calidad de datos
+  01b_tratamiento_nulos.ipynb   Reto 1 · Tratamiento de nulos columna a columna → data/datos_limpios.csv
   02_feature_engineering.ipynb  Reto 2 · Selección de features, features derivadas y pipeline
   03_kmeans.ipynb               Reto 3 · K-Means, método del codo, Silhouette, k final
   04_segmentos.ipynb            Reto 4 · Perfilado y nombres de negocio de los segmentos
-  _build_notebooks.py           Genera los notebooks (fuente de las celdas)
+  _build_notebooks.py           Genera los notebooks 01-04 (fuente de las celdas)
+  _build_nulos.py               Genera el notebook 01b
 src/
   mb_features.py                Limpieza, agregación a cliente, features derivadas y pipeline sklearn
   plot_style.py                 Estilo común de gráficos
@@ -21,6 +23,7 @@ reports/
   figures/                      Gráficos exportados
   fichas_segmentos.csv          Ficha de acciones por segmento para marketing
   kmeans_metricas_k.csv         Inercia y Silhouette para k = 2…10
+  tratamiento_nulos_resumen.csv Cómo se ha tratado cada columna (nulos antes/después y criterio)
 ```
 
 ## Cómo reproducir
@@ -59,6 +62,23 @@ Como se segmentan clientes, todo se agrega a **1 fila por cliente** con su "veh�
 | Fechas de matriculación de 1987 | A nulo e imputación por mediana |
 | IDs, índice exportado, código postal, modas multivalor, contadores técnicos | Excluidos |
 | `gender_derived` (inferido, 11 % nulo) | Fuera del modelo por sesgo; solo se usa para perfilar |
+
+### Tratamiento de nulos (`01b_tratamiento_nulos.ipynb`)
+
+Cada columna se trata según su naturaleza, y cada deducción se **valida** escondiendo valores conocidos:
+
+| Columna(s) | Tratamiento |
+|---|---|
+| `engine_concept` (44 %) | Cascada validada: reglas por nombre (`EQ…` → eléctrico, `e`/`de` → PHEV), nombre + año, nombre, serie + año, clase + año. Acierta ≈100 % cuando decide; el 25 % de los nulos queda `UNKNOWN` (nunca "combustión por defecto") |
+| `fuel_type` (59 %) | Reglas validadas (eléctrico, nombre diésel) + mismo modelo con mismo motor. Gasolina vs gasolina plus no es deducible → ~49 % de los nulos queda `UNKNOWN` |
+| `model_class` (1 %) | Deducida del nombre del coche (exacto o prefijo) |
+| `date_of_first_registration` (1,4 %) | Mediana de la serie del modelo (error ~1,3 años frente a 2,3 de la mediana global) |
+| `gender_derived` (11 %) | `UNKNOWN`: el nulo no es aleatorio y el dato es inferido |
+| `vehicle_type`, `zipcode` | `UNKNOWN`: identificadores no reconstruibles |
+| Socioeconómicas (6 %) | Mediana **por país**; `purchasing_power_millions_eur` se recalcula con su identidad exacta |
+| Telemetría (~60 %, falta estructural) | Indicadores `has_*` de presencia real; contadores → 0, modas → `NO_DATA`, resto → mediana de un grupo comparable |
+
+El CSV limpio (`data/datos_limpios.csv`, 0 nulos, 38 columnas originales + 10 indicadores) se genera al ejecutar el notebook y **no se sube** al repositorio.
 
 ## Reto 2 · Features
 

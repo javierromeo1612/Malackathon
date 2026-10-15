@@ -1,0 +1,39 @@
+columna,nulos_antes,%_antes,nulos_despues,tratamiento,detalle
+client_id,0,0.0,0,Sin nulos,Identificador. Sin cambios.
+vehicle_id,0,0.0,0,Sin nulos,Identificador. Sin cambios.
+age_range,0,0.0,0,Sin nulos,Sin cambios.
+gender_derived,33923,11.2,0,Categoría UNKNOWN,Nulo no aleatorio (más en usuarios secundarios y extremos de edad); dato inferido. No se imputa con la moda.
+model_series,0,0.0,0,Sin nulos,Sin cambios. Se usa como pista para deducir otras columnas.
+vehicle_type,922,0.3,0,Categoría UNKNOWN,Nombre comercial único: no reconstruible.
+model_class,3369,1.11,0,Deducción validada,"Del nombre del coche (exacto o prefijo) con pureza mínima; si no hay evidencia, UNKNOWN."
+product_group,0,0.0,0,Sin nulos,Sin cambios.
+engine_concept,134390,44.38,0,Deducción validada,"Cascada: reglas EQ/e-de, nombre+año, nombre, serie+año, clase+año. Sin evidencia -> UNKNOWN (nunca 'combustión por defecto')."
+country_code,0,0.0,0,Sin nulos,Sin cambios. Se usa como grupo para imputar la zona.
+fuel_type,178745,59.02,0,Deducción validada,"Reglas validadas (eléctrico -> ELECTRIC; nombre diésel -> DIESEL o DIESEL,ELECTRIC) + mismo modelo con mismo motor. Gasolina vs gasolina plus no deducible -> UNKNOWN."
+date_of_first_registration,4182,1.38,0,Mediana de la serie,Mediana de fecha de los coches de la misma serie (validado). Fechas < 2000 tratadas como nulo.
+is_current_vehicle,0,0.0,0,Sin nulos,Sin cambios.
+role,0,0.0,0,Sin nulos,Sin cambios.
+role_type,0,0.0,0,Sin nulos,Sin cambios.
+months_as_mb_customer,4,0.0,0,Mediana de grupo,4 filas: mediana de clientes con el mismo nº de vehículos conectados.
+currently_connected_vehicles,0,0.0,0,Sin nulos,Sin cambios.
+finance_leasing_status,0,0.0,0,Sin nulos,Sin cambios.
+workshop_visits_warranty_goodwill,0,0.0,0,Sin nulos,Sin cambios.
+consent_phone_communication_channel,0,0.0,0,Sin nulos,Sin cambios.
+consent_epost_communication_channel,0,0.0,0,Sin nulos,Sin cambios.
+consent_post_communication_channel,0,0.0,0,Sin nulos,Sin cambios.
+purchasing_power_per_inhabitant_eur,19087,6.3,0,Mediana del país,Falta junto al resto de la zona. Se marca con socio_imputed.
+purchasing_power_per_household_eur,19087,6.3,0,Mediana del país,Idem.
+population,19014,6.28,0,Mediana del país,Idem. Los ceros (73 filas) eran falsos valores y se tratan como nulo.
+zipcode,16135,5.33,0,Categoría UNKNOWN,Identificador geográfico: no se inventa.
+trip_distance_average,185857,61.37,0,Mediana por motorización,Falta estructural (coche sin telemetría). Marca: has_trip_data.
+trip_distance_mode,179830,59.38,0,Categoría NO_DATA,Texto con una o varias modas.
+trip_distance_median,179830,59.38,0,Mediana por motorización,Idem. Marca: has_trip_data.
+trip_distance_all_counter,179830,59.38,0,Relleno con 0,Nº de mediciones: sin datos = 0.
+operating_hours_total,174358,57.57,0,Mediana por año de matriculación,Acumulado que crece con la edad. Marca: has_hours_data.
+fuel_consumption_average,180725,59.67,0,0 eléctricos / mediana por clase,Eléctrico no consume combustible. Marca: has_consumption_data.
+speed_average,182382,60.22,0,Mediana por motorización,Falta estructural. Marca: has_speed_data.
+speed_mode,181159,59.82,0,Categoría NO_DATA,Texto con una o varias modas.
+speed_median,181159,59.82,0,Mediana por motorización,Idem. Marca: has_speed_data.
+speed_all_counter,181159,59.82,0,Relleno con 0,Nº de mediciones: sin datos = 0.
+number_of_households,19014,6.28,0,Mediana del país,Idem zona. Los ceros se tratan como nulo.
+purchasing_power_millions_eur,19087,6.3,0,Recalculado,= pp por habitante × población / 1e6 (identidad verificada en los datos reales).
