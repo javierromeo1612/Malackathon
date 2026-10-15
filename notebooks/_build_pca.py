@@ -169,6 +169,7 @@ for f in CANDIDATAS:
         FEATURES.append(f)
     else:
         descartadas.append({"descartada": f, "muy correlacionada con": pareja, "ρ": round(corr.loc[f, pareja], 2)})
+pd.DataFrame(descartadas).to_csv(ROOT / "reports" / "A2_features_descartadas.csv", index=False)
 display(pd.DataFrame(descartadas))
 print(f"Features finales ({len(FEATURES)}):", FEATURES)'''))
 add(md('''
@@ -229,6 +230,8 @@ df_pca.head()'''))
 add(code(r'''# Contexto: ¿cuántas componentes harían falta para conservar más información?
 pca_total = PCA(random_state=42).fit(X_scaled)
 acum = np.cumsum(pca_total.explained_variance_ratio_)
+pd.DataFrame({"varianza_%": pca_total.explained_variance_ratio_ * 100, "acumulada_%": acum * 100},
+             index=[f"PC{i}" for i in range(1, len(acum) + 1)]).to_csv(ROOT / "reports" / "A2_varianza.csv")
 
 fig, ax = plt.subplots(figsize=(9, 4))
 k = np.arange(1, len(acum) + 1)
@@ -419,6 +422,7 @@ add(code(r"""if hay_clusters:
         gama_superior_pct=("gama_superior", lambda x: x.mean() * 100),
         financiacion_activa_pct=("finance_leasing_status", lambda x: x.str.startswith("active").mean() * 100),
     ).reindex(ORDEN_SEG)
+    regiones.to_csv(ROOT / "reports" / "A2_regiones_segmentos.csv")
 
     fig, ax = plt.subplots(figsize=(10, 6.5))
     ax.axvspan(0, 10, color=ps.SERIES[2], alpha=0.06)
@@ -465,7 +469,8 @@ if hay_clusters:
     m = df_pca.sample(20_000, random_state=0)
     sil_2d = silhouette_score(m[["PC1", "PC2"]], m["cluster"])
     sil_3d = silhouette_score(m[["PC1", "PC2", "PC3"]], m["cluster"])
-    print(f"Silueta de los clústeres en el plano 2D: {sil_2d:.3f} · en el espacio 3D: {sil_3d:.3f}")"""))
+    print(f"Silueta de los clústeres en el plano 2D: {sil_2d:.3f} · en el espacio 3D: {sil_3d:.3f}")
+    pd.Series({"silueta_2d": sil_2d, "silueta_3d": sil_3d}, name="valor").to_csv(ROOT / "reports" / "A2_separabilidad.csv")"""))
 add(md("""
 **Valoración.** En la proyección del PCA los clústeres **no son visualmente separables**: sus nubes se solapan y la silueta medida en el plano
 2D y en el espacio 3D es negativa o cercana a cero. Sí se distinguen sus **posiciones medias**, que caen en zonas distintas del plano y encajan

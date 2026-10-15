@@ -95,6 +95,17 @@ def figura(ruta, ancho_cm, pie=None):
     return KeepTogether(elementos)
 
 
+def figuras_lado_a_lado(rutas, ancho_total_cm, pie=None):
+    """Varias imágenes en una fila, ajustadas a la misma altura, con un único pie de figura."""
+    from PIL import Image as PILImage
+    proporciones = [PILImage.open(r).size for r in rutas]
+    alto_cm = ancho_total_cm / sum(w / h for w, h in proporciones)
+    imagenes = [Image(str(r), width=alto_cm * w / h * cm, height=alto_cm * cm) for r, (w, h) in zip(rutas, proporciones)]
+    fila = Table([imagenes], colWidths=[alto_cm * w / h * cm for w, h in proporciones], hAlign="CENTER")
+    fila.setStyle(TableStyle([("LEFTPADDING", (0, 0), (-1, -1), 0), ("RIGHTPADDING", (0, 0), (-1, -1), 0)]))
+    return KeepTogether([fila] + ([Paragraph(pie, PIE)] if pie else []))
+
+
 def construir(nombre, historia, max_paginas):
     salida = DOCS / nombre
     doc = SimpleDocTemplate(str(salida), pagesize=A4, leftMargin=2 * cm, rightMargin=2 * cm, topMargin=1.6 * cm,
@@ -538,7 +549,118 @@ def avanzado1():
     construir("RETO AVANZADO 1 - MERCEDES.pdf", h, max_paginas=4)
 
 
+# --------------------------------------------------------------------------- #
+# RETO AVANZADO 2 · Reducción de dimensionalidad (PCA)
+# --------------------------------------------------------------------------- #
+def avanzado2():
+    rep = ROOT / "reports"
+    var = pd.read_csv(rep / "A2_varianza.csv", index_col=0)
+    load = pd.read_csv(rep / "A2_loadings_pca.csv", index_col=0)
+    desc = pd.read_csv(rep / "A2_features_descartadas.csv")
+    reg = pd.read_csv(rep / "A2_regiones_segmentos.csv", index_col=0)
+    sep = pd.read_csv(rep / "A2_separabilidad.csv", index_col=0)["valor"]
+    v1, v2, v3 = var.loc["PC1", "varianza_%"], var.loc["PC2", "varianza_%"], var.loc["PC3", "varianza_%"]
+    acum2, acum3 = var.loc["PC2", "acumulada_%"], var.loc["PC3", "acumulada_%"]
+    n80 = int((var["acumulada_%"] >= 80).values.argmax()) + 1
+    derecha = reg[reg.PC1 > 0]
+    izquierda = reg[reg.PC1 < 0]
+
+    h = cabecera("AVANZADO 2")
+    h += [Paragraph("A. Planteamiento", SECCION),
+          p(f"El objetivo es resumir el perfil de cada cliente en dos o tres ejes (componentes principales) para poder <b>visualizar los "
+            f"segmentos</b> obtenidos con K-Means (k = 6). Partiendo del CSV original se limpiaron los datos, se agregaron a una fila por "
+            f"cliente (<b>173.456 clientes</b>) y se construyeron las features derivadas del reto 2. Después se aplicó el PCA sobre "
+            f"<b>{len(load)} features de negocio</b>, seleccionadas para evitar redundancias:"),
+          tabla([["Feature descartada", "Muy correlacionada con", "Correlación"]] +
+                [[r.descartada, r["muy correlacionada con"], n(r["ρ"], 2)] for _, r in desc.iterrows()],
+                [5.5 * cm, 5.5 * cm, 2.6 * cm]),
+          Spacer(1, 4),
+          bullets([
+              "<b>Por qué se descartan:</b> dos variables casi iguales contarían dos veces en el PCA y desplazarían los ejes hacia lo que miden. "
+              "Las tres descartadas son redundantes por construcción (las inspecciones se calculan con la antigüedad del coche, el total de visitas "
+              "es la base de su frecuencia y los vehículos conectados forman parte del índice digital).",
+              "<b>Preparación:</b> imputación por mediana, <i>log1p</i> en las cuatro variables con cola larga (frecuencia de visitas, índice "
+              "digital, poder adquisitivo y vehículos del historial) y <i>StandardScaler</i> en todas las continuas. El escalado es "
+              "imprescindible: el PCA busca las direcciones de mayor varianza y, sin él, el poder adquisitivo (en euros) acapararía toda la "
+              "varianza solo por sus unidades. Las binarias se mantienen en 0/1.",
+              "<b>Modelo:</b> PCA de scikit-learn con <i>n_components=3</i> y <i>random_state=42</i>.",
+          ])]
+
+    h += [Paragraph("B. Varianza explicada por cada componente", SECCION),
+          tabla([["Componente", "Varianza explicada", "Varianza acumulada"],
+                 ["PC1", f"{n(v1, 1)} %", f"{n(v1, 1)} %"],
+                 ["PC2", f"{n(v2, 1)} %", f"{n(acum2, 1)} % (plano 2D)"],
+                 ["PC3", f"{n(v3, 1)} %", f"{n(acum3, 1)} % (espacio 3D)"]], [3.5 * cm, 4.5 * cm, 5 * cm]),
+          Spacer(1, 4),
+          figura(FIG / "A2_varianza_pca.png", 12.5, "Figura 1. Varianza explicada por componente (en azul, las tres utilizadas)."),
+          p(f"El plano 2D conserva el <b>{n(acum2, 1)} %</b> de la información y el espacio 3D el <b>{n(acum3, 1)} %</b>; harían falta "
+            f"{n80} de las {len(var)} componentes para superar el 80 %. Es razonable para <b>visualizar</b>: los clientes se describen con muchas "
+            f"dimensiones poco correlacionadas entre sí, así que ningún par de ejes puede resumirlas todas. Los gráficos muestran tendencias "
+            f"generales, no todas las diferencias entre clientes.")]
+
+    filas = [["Variable original", "PC1", "PC2", "PC3"]]
+    for var_name, r in load.reindex(load["PC1"].abs().sort_values(ascending=False).index).iterrows():
+        filas.append([var_name] + [f"<b>{n(x, 2)}</b>" if abs(x) >= 0.3 else n(x, 2) for x in r.values])
+    h += [Paragraph("C. Interpretación de las componentes principales", SECCION),
+          p("Los <b>loadings</b> son el peso de cada variable original en cada componente: un valor alto, positivo o negativo, indica que la "
+            "variable define el eje, y el signo, en qué dirección. En negrita, los pesos de 0,30 o más en valor absoluto."),
+          tabla(filas, [6.5 * cm, 2.6 * cm, 2.6 * cm, 2.6 * cm], envolver=True),
+          Spacer(1, 4),
+          bullets([
+              "<b>PC1 · Profundidad de la relación con la marca.</b> Pesan en positivo la antigüedad como cliente, los vehículos del historial, "
+              "el índice digital y la frecuencia de visitas al taller. A la derecha están los clientes veteranos, con varios coches, conectados y "
+              "que usan la posventa; a la izquierda, los recién llegados con un solo vehículo.",
+              "<b>PC2 · Cliente maduro de posventa frente a cliente multivehículo.</b> Pesan en positivo las visitas al taller, la antigüedad del "
+              "coche y el poder adquisitivo, y en negativo los vehículos del historial y el índice digital.",
+              "<b>PC3 · Coche antiguo en manos de clientes jóvenes.</b> Pesa en positivo la antigüedad del vehículo y en negativo la edad del "
+              "cliente y el poder adquisitivo.",
+              "<b>Las variables binarias</b> (furgoneta, telemetría, B2B, financiación) apenas pesan: al mantenerlas en 0/1 su varianza es mucho "
+              "menor que la de las continuas estandarizadas. Es buscado: evita que una característica minoritaria, como B2B, domine la proyección.",
+          ])]
+
+    h += [Paragraph("D. Visualización de los clusters", SECCION),
+          figuras_lado_a_lado([FIG / "A2_pca_2d_clusters.png", FIG / "A2_pca_3d_clusters.png"], 17,
+                              "Figura 2. Clientes coloreados por segmento en el plano PC1-PC2 (izquierda, muestra de 25.000 clientes) "
+                              "y en el espacio PC1-PC2-PC3 (derecha)."),
+          p("Para leer mejor los gráficos se calculó la <b>posición media de cada segmento</b> y se cruzó con indicadores de valor de sus "
+            "clientes (no se dispone de datos de facturación, así que son la mejor aproximación al valor de cada perfil):"),
+          tabla([["Segmento", "PC1", "PC2", "% clientes", "Poder adq. (k€)", "% usa el taller", "Meses cliente"]] +
+                [[s.split(" · ")[1], n(r.PC1, 2), n(r.PC2, 2), f"{n(r.clientes_pct, 1)} %", n(r.poder_adquisitivo_k),
+                  f"{n(r.posventa_pct)} %", n(r.meses_cliente)] for s, r in reg.iterrows()],
+                [5 * cm, 1.4 * cm, 1.4 * cm, 2 * cm, 2.4 * cm, 2.4 * cm, 2.4 * cm]),
+          Spacer(1, 4),
+          figura(FIG / "A2_centros_clusters.png", 12.5, "Figura 3. Posición media de cada segmento e indicadores de valor."),
+          bullets([
+              f"<b>La mitad derecha (PC1 > 0) es la zona de mayor valor:</b> {', '.join(s.split(' · ')[1] for s in derecha.index)}. Son los "
+              f"segmentos con mayor poder adquisitivo ({n(derecha.poder_adquisitivo_k.min())}-{n(derecha.poder_adquisitivo_k.max())} k€) y con "
+              f"casi todos sus clientes usando el taller oficial ({n(derecha.posventa_pct.min())}-{n(derecha.posventa_pct.max())} %). Suman el "
+              f"{n(derecha.clientes_pct.sum())} % de la base.",
+              "<b>La esquina superior derecha es la del cliente más rentable para la posventa:</b> el Fiel del Taller Oficial combina la relación "
+              "más larga, el mayor poder adquisitivo y el uso más intenso del taller.",
+              f"<b>La mitad izquierda (PC1 < 0) es la zona de oportunidad y de riesgo:</b> {', '.join(s.split(' · ')[1] for s in izquierda.index)}, "
+              f"con menos poder adquisitivo ({n(izquierda.poder_adquisitivo_k.min())}-{n(izquierda.poder_adquisitivo_k.max())} k€) y un uso del "
+              f"taller oficial mucho menor ({n(izquierda.posventa_pct.min())}-{n(izquierda.posventa_pct.max())} %).",
+          ])]
+
+    h += [Paragraph("E. Valoración: ¿los clusters son visualmente separables?", SECCION),
+          p(f"<b>No de forma nítida.</b> En el plano del PCA las nubes de los segmentos se solapan en sus bordes, y la medida objetiva lo confirma: "
+            f"la silueta de los clústeres en el espacio del PCA es de <b>{n(sep['silueta_2d'], 3)}</b> en 2D y de <b>{n(sep['silueta_3d'], 3)}</b> "
+            f"en 3D (valores cercanos a 0 indican grupos solapados). Sí se distinguen claramente sus <b>posiciones medias</b>, que caen en zonas "
+            f"distintas del plano y encajan con los perfiles del reto 4."),
+          p("Hay dos motivos para el solapamiento:"),
+          bullets([
+              f"<b>Los ejes solo recogen parte de la información</b> ({n(acum2)} % en 2D y {n(acum3)} % en 3D).",
+              "<b>K-Means se entrenó con variables que este PCA no incluye o apenas pondera</b>, como el tipo de financiación y la motorización en "
+              "one-hot. Por ejemplo, el Conductor en Leasing se define sobre todo por la financiación activa, una variable binaria con poco peso "
+              "en estos ejes.",
+          ]),
+          p("<b>Conclusión:</b> la segmentación captura diferencias reales de perfil, visibles en la posición de cada segmento, pero entre clientes "
+            "que forman un <b>continuo</b>. Los segmentos son útiles para orientar acciones de marketing, no grupos aislados con fronteras nítidas; "
+            "es coherente con la silueta moderada del reto 3 y con la estabilidad comprobada en el reto avanzado 3.")]
+    construir("RETO AVANZADO 2 - MERCEDES.pdf", h, max_paginas=4)
+
+
 if __name__ == "__main__":
-    pedidos = sys.argv[1:] or ["1", "2", "3", "A1"]
+    pedidos = sys.argv[1:] or ["1", "2", "3", "A1", "A2"]
     for r in pedidos:
-        {"1": reto1, "2": reto2, "3": reto3, "A1": avanzado1}[r]()
+        {"1": reto1, "2": reto2, "3": reto3, "A1": avanzado1, "A2": avanzado2}[r]()
